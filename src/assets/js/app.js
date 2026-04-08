@@ -1,3 +1,208 @@
+// // assets/js/app.js
+
+// let appliedFilters = {
+//   applicationName: "",
+//   interfaceName: "",
+//   dateFrom: "",
+//   dateTo: "",
+//   search: ""
+// };
+
+// let currentFilteredLogs = [];
+// let currentPage = 1;
+// let pageSize = 10;
+
+// function getFilterValues() {
+//   return {
+//     applicationName: document.getElementById("applicationName").value.trim(),
+//     interfaceName: document.getElementById("interfaceName").value.trim(),
+//     dateFrom: document.getElementById("dateFrom").value,
+//     dateTo: document.getElementById("dateTo").value,
+//     search: document.getElementById("globalSearch").value.trim()
+//   };
+// }
+
+// function populateSelect(selectEl, items, placeholder) {
+//   selectEl.innerHTML = `<option value="">${placeholder}</option>`;
+
+//   items.forEach(item => {
+//     const option = document.createElement("option");
+//     option.value = item;
+//     option.textContent = item;
+//     selectEl.appendChild(option);
+//   });
+// }
+
+// function loadApplications() {
+//   populateSelect(
+//     document.getElementById("applicationName"),
+//     getApplications(),
+//     "All Applications"
+//   );
+// }
+
+// function loadInterfaces(applicationName = "") {
+//   populateSelect(
+//     document.getElementById("interfaceName"),
+//     getInterfaces(applicationName),
+//     "All Interfaces"
+//   );
+// }
+
+// function clearFilters() {
+//   document.getElementById("filterForm").reset();
+//   document.getElementById("applicationName").value = "";
+//   document.getElementById("interfaceName").value = "";
+//   document.getElementById("dateFrom").value = "";
+//   document.getElementById("dateTo").value = "";
+//   document.getElementById("recentRange").value = "";
+//   document.getElementById("globalSearch").value = "";
+// }
+
+// function applyRecentRange() {
+//   const mins = parseInt(document.getElementById("recentRange").value, 10);
+//   if (!mins) return;
+
+//   const end = new Date();
+//   const start = new Date(end.getTime() - mins * 60000);
+
+//   const pad = n => String(n).padStart(2, "0");
+//   const format = d =>
+//     `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+
+//   document.getElementById("dateFrom").value = format(start);
+//   document.getElementById("dateTo").value = format(end);
+// }
+
+// function ensurePageSizeControl() {
+//   const tableBottom = document.querySelector(".table-bottom");
+//   if (!tableBottom || document.getElementById("pageSizeControl")) return;
+
+//   const control = document.createElement("div");
+//   control.className = "page-size-control";
+//   control.id = "pageSizeControl";
+//   control.innerHTML = `
+//     <label class="page-size-label" for="pageSizeSelect">Rows per page</label>
+//     <select id="pageSizeSelect" class="form-select form-select-sm page-size-select">
+//       <option value="10">10</option>
+//       <option value="25">25</option>
+//       <option value="50">50</option>
+//       <option value="100">100</option>
+//     </select>
+//   `;
+
+//   tableBottom.prepend(control);
+
+//   const select = document.getElementById("pageSizeSelect");
+//   select.value = String(pageSize);
+
+//   select.addEventListener("change", (e) => {
+//     pageSize = parseInt(e.target.value, 10) || 10;
+//     currentPage = 1;
+//     renderCurrentPage();
+//   });
+// }
+
+// function getTotalPages() {
+//   return currentFilteredLogs.length > 0
+//     ? Math.ceil(currentFilteredLogs.length / pageSize)
+//     : 0;
+// }
+
+// function goToPage(page) {
+//   currentPage = page;
+//   renderCurrentPage();
+// }
+
+// function renderCurrentPage() {
+//   const total = currentFilteredLogs.length;
+//   const totalPages = getTotalPages();
+
+//   if (totalPages > 0) {
+//     currentPage = Math.min(Math.max(currentPage, 1), totalPages);
+//   } else {
+//     currentPage = 1;
+//   }
+
+//   const startIndex = total > 0 ? (currentPage - 1) * pageSize : 0;
+//   const endIndex = total > 0 ? Math.min(startIndex + pageSize, total) : 0;
+//   const pageData = total > 0 ? currentFilteredLogs.slice(startIndex, endIndex) : [];
+
+//   refreshTable(pageData);
+
+//   if (total > 0) {
+//     updateEntriesText(startIndex + 1, endIndex, total);
+//   } else {
+//     updateEntriesText(0, 0, 0);
+//   }
+
+//   renderPager(currentPage, totalPages, goToPage);
+// }
+
+// function refreshLogs() {
+//   currentFilteredLogs = getFilteredLogs(appliedFilters);
+//   currentPage = 1;
+//   renderCurrentPage();
+// }
+
+// function applyFiltersFromUI() {
+//   appliedFilters = getFilterValues();
+//   refreshLogs();
+// }
+
+// function applyLiveSearch() {
+//   appliedFilters.search = document.getElementById("globalSearch").value.trim();
+//   refreshLogs();
+// }
+
+// document.addEventListener("DOMContentLoaded", () => {
+//   loadApplications();
+//   loadInterfaces();
+
+//   initLogsTable([]);
+//   ensurePageSizeControl();
+//   refreshLogs();
+
+//   document.getElementById("submitBtn").addEventListener("click", (e) => {
+//     e.preventDefault();
+//     applyFiltersFromUI();
+//   });
+
+//   document.getElementById("globalSearch").addEventListener("input", () => {
+//     applyLiveSearch();
+//   });
+
+//   document.getElementById("clearBtn").addEventListener("click", () => {
+//     clearFilters();
+//     appliedFilters = {
+//       applicationName: "",
+//       interfaceName: "",
+//       dateFrom: "",
+//       dateTo: "",
+//       search: ""
+//     };
+//     currentPage = 1;
+//     refreshLogs();
+//   });
+
+//   document.getElementById("recentRange").addEventListener("change", () => {
+//     applyRecentRange();
+//   });
+
+//   document.getElementById("applicationName").addEventListener("change", (e) => {
+//     loadInterfaces(e.target.value);
+//   });
+
+//   document.getElementById("dateFrom").addEventListener("change", () => {
+//     document.getElementById("recentRange").value = "";
+//   });
+
+//   document.getElementById("dateTo").addEventListener("change", () => {
+//     document.getElementById("recentRange").value = "";
+//   });
+// });
+
+
 // assets/js/app.js
 
 let appliedFilters = {
@@ -12,52 +217,67 @@ let currentFilteredLogs = [];
 let currentPage = 1;
 let pageSize = 10;
 
+// Tom Select instances for programmatic control
+let appSelect, ifaceSelect;
+
+/**
+ * Retrieves current filter values from the UI
+ */
 function getFilterValues() {
   return {
-    applicationName: document.getElementById("applicationName").value.trim(),
-    interfaceName: document.getElementById("interfaceName").value.trim(),
+    // Get values from Tom Select instances
+    applicationName: appSelect ? appSelect.getValue().trim() : "",
+    interfaceName: ifaceSelect ? ifaceSelect.getValue().trim() : "",
     dateFrom: document.getElementById("dateFrom").value,
     dateTo: document.getElementById("dateTo").value,
     search: document.getElementById("globalSearch").value.trim()
   };
 }
 
-function populateSelect(selectEl, items, placeholder) {
-  selectEl.innerHTML = `<option value="">${placeholder}</option>`;
+/**
+ * Helper to update Tom Select options dynamically
+ * Fixed: Removed adding placeholder as a selectable option to prevent redundancy.
+ */
+function updateSearchableSelect(instance, items) {
+  if (!instance) return;
 
+  // Clear existing options
+  instance.clearOptions();
+  
+  // Add actual data items from the API
   items.forEach(item => {
-    const option = document.createElement("option");
-    option.value = item;
-    option.textContent = item;
-    selectEl.appendChild(option);
+    instance.addOption({ value: item, text: item });
   });
+  
+  // Refresh the UI and reset to empty state (which shows the placeholder)
+  instance.refreshOptions(false);
+  instance.setValue(""); 
 }
 
 function loadApplications() {
-  populateSelect(
-    document.getElementById("applicationName"),
-    getApplications(),
-    "All Applications"
-  );
+  const apps = getApplications(); // From api.js
+  updateSearchableSelect(appSelect, apps);
 }
 
 function loadInterfaces(applicationName = "") {
-  populateSelect(
-    document.getElementById("interfaceName"),
-    getInterfaces(applicationName),
-    "All Interfaces"
-  );
+  const interfaces = getInterfaces(applicationName); // From api.js
+  updateSearchableSelect(ifaceSelect, interfaces);
 }
 
 function clearFilters() {
   document.getElementById("filterForm").reset();
-  document.getElementById("applicationName").value = "";
-  document.getElementById("interfaceName").value = "";
+  
+  // Reset Tom Select components to show their placeholders
+  if (appSelect) appSelect.setValue("");
+  if (ifaceSelect) ifaceSelect.setValue("");
+  
   document.getElementById("dateFrom").value = "";
   document.getElementById("dateTo").value = "";
   document.getElementById("recentRange").value = "";
   document.getElementById("globalSearch").value = "";
 }
+
+// ... (Paging and Table logic remains the same as your previous working version)
 
 function applyRecentRange() {
   const mins = parseInt(document.getElementById("recentRange").value, 10);
@@ -128,19 +348,19 @@ function renderCurrentPage() {
   const endIndex = total > 0 ? Math.min(startIndex + pageSize, total) : 0;
   const pageData = total > 0 ? currentFilteredLogs.slice(startIndex, endIndex) : [];
 
-  refreshTable(pageData);
+  refreshTable(pageData); // From table.js
 
   if (total > 0) {
-    updateEntriesText(startIndex + 1, endIndex, total);
+    updateEntriesText(startIndex + 1, endIndex, total); // From table.js
   } else {
     updateEntriesText(0, 0, 0);
   }
 
-  renderPager(currentPage, totalPages, goToPage);
+  renderPager(currentPage, totalPages, goToPage); // From table.js
 }
 
 function refreshLogs() {
-  currentFilteredLogs = getFilteredLogs(appliedFilters);
+  currentFilteredLogs = getFilteredLogs(appliedFilters); // From api.js
   currentPage = 1;
   renderCurrentPage();
 }
@@ -156,12 +376,31 @@ function applyLiveSearch() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // 1. Initialize Tom Select with specific placeholders
+  appSelect = new TomSelect("#applicationName", {
+    create: false,
+    placeholder: "Select Applications...",
+    allowEmptyOption: true,
+    sortField: { field: "text", direction: "asc" }
+  });
+
+  ifaceSelect = new TomSelect("#interfaceName", {
+    create: false,
+    placeholder: "Select Interfaces...",
+    allowEmptyOption: true,
+    sortField: { field: "text", direction: "asc" }
+  });
+
+  // 2. Initial Data Load
   loadApplications();
   loadInterfaces();
 
-  initLogsTable([]);
+  // 3. Initialize Logs Table
+  initLogsTable([]); 
   ensurePageSizeControl();
   refreshLogs();
+
+  // --- Event Listeners ---
 
   document.getElementById("submitBtn").addEventListener("click", (e) => {
     e.preventDefault();
@@ -189,8 +428,9 @@ document.addEventListener("DOMContentLoaded", () => {
     applyRecentRange();
   });
 
-  document.getElementById("applicationName").addEventListener("change", (e) => {
-    loadInterfaces(e.target.value);
+  // Update interface dropdown when application changes
+  appSelect.on('change', (value) => {
+    loadInterfaces(value);
   });
 
   document.getElementById("dateFrom").addEventListener("change", () => {
