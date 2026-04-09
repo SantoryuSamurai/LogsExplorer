@@ -95,7 +95,7 @@ const mockLogs = [
     applicationCode: "PaymentsHub",
     transactionId: "TXN900009",
     loggingStage: { type: "success", text: "REQUEST_SERVED" },
-    targetService: "INQUIRY_SERVICE",
+    targetService: "BankingApp",
     logTime: "02/04/2026 14:55:02",
     createdBy: "operator",
     modifiedDate: "02/04/2026 14:56:33"
@@ -106,7 +106,7 @@ const mockLogs = [
     applicationCode: "DepositBank",
     transactionId: "TXN900010",
     loggingStage: { type: "warning", text: "Retry initiated" },
-    targetService: "ACCOUNT_SERVICE",
+    targetService: "BankingApp",
     logTime: "01/04/2026 10:45:45",
     createdBy: "admin",
     modifiedDate: "01/04/2026 10:47:12"

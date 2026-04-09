@@ -12,52 +12,67 @@ let currentFilteredLogs = [];
 let currentPage = 1;
 let pageSize = 10;
 
+// Tom Select instances for programmatic control
+let appSelect, ifaceSelect;
+
+/**
+ * Retrieves current filter values from the UI
+ */
 function getFilterValues() {
   return {
-    applicationName: document.getElementById("applicationName").value.trim(),
-    interfaceName: document.getElementById("interfaceName").value.trim(),
+    // Get values from Tom Select instances
+    applicationName: appSelect ? appSelect.getValue().trim() : "",
+    interfaceName: ifaceSelect ? ifaceSelect.getValue().trim() : "",
     dateFrom: document.getElementById("dateFrom").value,
     dateTo: document.getElementById("dateTo").value,
     search: document.getElementById("globalSearch").value.trim()
   };
 }
 
-function populateSelect(selectEl, items, placeholder) {
-  selectEl.innerHTML = `<option value="">${placeholder}</option>`;
+/**
+ * Helper to update Tom Select options dynamically
+ * Fixed: Removed adding placeholder as a selectable option to prevent redundancy.
+ */
+function updateSearchableSelect(instance, items) {
+  if (!instance) return;
 
+  // Clear existing options
+  instance.clearOptions();
+  
+  // Add actual data items from the API
   items.forEach(item => {
-    const option = document.createElement("option");
-    option.value = item;
-    option.textContent = item;
-    selectEl.appendChild(option);
+    instance.addOption({ value: item, text: item });
   });
+  
+  // Refresh the UI and reset to empty state (which shows the placeholder)
+  instance.refreshOptions(false);
+  instance.setValue(""); 
 }
 
 function loadApplications() {
-  populateSelect(
-    document.getElementById("applicationName"),
-    getApplications(),
-    "All Applications"
-  );
+  const apps = getApplications(); // From api.js
+  updateSearchableSelect(appSelect, apps);
 }
 
 function loadInterfaces(applicationName = "") {
-  populateSelect(
-    document.getElementById("interfaceName"),
-    getInterfaces(applicationName),
-    "All Interfaces"
-  );
+  const interfaces = getInterfaces(applicationName); // From api.js
+  updateSearchableSelect(ifaceSelect, interfaces);
 }
 
 function clearFilters() {
   document.getElementById("filterForm").reset();
-  document.getElementById("applicationName").value = "";
-  document.getElementById("interfaceName").value = "";
+  
+  // Reset Tom Select components to show their placeholders
+  if (appSelect) appSelect.setValue("");
+  if (ifaceSelect) ifaceSelect.setValue("");
+  
   document.getElementById("dateFrom").value = "";
   document.getElementById("dateTo").value = "";
   document.getElementById("recentRange").value = "";
   document.getElementById("globalSearch").value = "";
 }
+
+// ... (Paging and Table logic remains the same as your previous working version)
 
 function applyRecentRange() {
   const mins = parseInt(document.getElementById("recentRange").value, 10);
@@ -128,19 +143,19 @@ function renderCurrentPage() {
   const endIndex = total > 0 ? Math.min(startIndex + pageSize, total) : 0;
   const pageData = total > 0 ? currentFilteredLogs.slice(startIndex, endIndex) : [];
 
-  refreshTable(pageData);
+  refreshTable(pageData); // From table.js
 
   if (total > 0) {
-    updateEntriesText(startIndex + 1, endIndex, total);
+    updateEntriesText(startIndex + 1, endIndex, total); // From table.js
   } else {
     updateEntriesText(0, 0, 0);
   }
 
-  renderPager(currentPage, totalPages, goToPage);
+  renderPager(currentPage, totalPages, goToPage); // From table.js
 }
 
 function refreshLogs() {
-  currentFilteredLogs = getFilteredLogs(appliedFilters);
+  currentFilteredLogs = getFilteredLogs(appliedFilters); // From api.js
   currentPage = 1;
   renderCurrentPage();
 }
@@ -156,12 +171,31 @@ function applyLiveSearch() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  // 1. Initialize Tom Select with specific placeholders
+  appSelect = new TomSelect("#applicationName", {
+    create: false,
+    placeholder: "Select Applications...",
+    allowEmptyOption: true,
+    sortField: { field: "text", direction: "asc" }
+  });
+
+  ifaceSelect = new TomSelect("#interfaceName", {
+    create: false,
+    placeholder: "Select Interfaces...",
+    allowEmptyOption: true,
+    sortField: { field: "text", direction: "asc" }
+  });
+
+  // 2. Initial Data Load
   loadApplications();
   loadInterfaces();
 
-  initLogsTable([]);
+  // 3. Initialize Logs Table
+  initLogsTable([]); 
   ensurePageSizeControl();
   refreshLogs();
+
+  // --- Event Listeners ---
 
   document.getElementById("submitBtn").addEventListener("click", (e) => {
     e.preventDefault();
@@ -189,8 +223,9 @@ document.addEventListener("DOMContentLoaded", () => {
     applyRecentRange();
   });
 
-  document.getElementById("applicationName").addEventListener("change", (e) => {
-    loadInterfaces(e.target.value);
+  // Update interface dropdown when application changes
+  appSelect.on('change', (value) => {
+    loadInterfaces(value);
   });
 
   document.getElementById("dateFrom").addEventListener("change", () => {
