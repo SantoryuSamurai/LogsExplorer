@@ -49,13 +49,13 @@ function updateSearchableSelect(instance, items) {
   instance.setValue(""); 
 }
 
-function loadApplications() {
-  const apps = getApplications(); // From api.js
+async function loadApplications() {
+  const apps = await fetchApplicationCodes(); // From api.js
   updateSearchableSelect(appSelect, apps);
 }
 
-function loadInterfaces(applicationName = "") {
-  const interfaces = getInterfaces(applicationName); // From api.js
+async function loadInterfaces(applicationName = "") {
+  const interfaces = await fetchInterfaceCodes(applicationName); // From api.js
   updateSearchableSelect(ifaceSelect, interfaces);
 }
 
@@ -170,7 +170,7 @@ function applyLiveSearch() {
   refreshLogs();
 }
 
-document.addEventListener("DOMContentLoaded", () => {
+document.addEventListener("DOMContentLoaded", async () => {
   // 1. Initialize Tom Select with specific placeholders
   appSelect = new TomSelect("#applicationName", {
     create: false,
@@ -187,8 +187,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
   // 2. Initial Data Load
-  loadApplications();
-  loadInterfaces();
+  await Promise.all([loadApplications(), loadInterfaces()]);
 
   // 3. Initialize Logs Table
   initLogsTable([]); 
@@ -197,9 +196,20 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // --- Event Listeners ---
 
+  appSelect.on('change', async (value) => {
+        await loadInterfaces(value);
+    });
+
   document.getElementById("submitBtn").addEventListener("click", (e) => {
     e.preventDefault();
-    applyFiltersFromUI();
+    // applyFiltersFromUI();
+    appliedFilters = {
+            applicationName: appSelect.getValue(),
+            interfaceName: ifaceSelect.getValue(),
+            dateFrom: document.getElementById("dateFrom").value,
+            dateTo: document.getElementById("dateTo").value,
+            search: document.getElementById("globalSearch").value.trim()
+        };
   });
 
   document.getElementById("globalSearch").addEventListener("input", () => {
@@ -216,6 +226,7 @@ document.addEventListener("DOMContentLoaded", () => {
       search: ""
     };
     currentPage = 1;
+    loadInterfaces();
     refreshLogs();
   });
 
