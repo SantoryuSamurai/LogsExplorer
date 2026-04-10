@@ -43,9 +43,9 @@ function initLogsTable(initialData = []) {
   logsTable = new DataTable("#logsTable", {
     data: renderRows(initialData),
     columns: [
-      { title: "SEQ_ID" },
-      { title: "INTERFACE_Name" },
-      { title: "APPLICATION_Name" },
+      { title: "SEQUENCE_ID" },
+      { title: "INTERFACE_CODE" },
+      { title: "APPLICATION_CODE" },
       { title: "TRANSACTION_ID" },
       { title: "LOGGING_STAGE" },
       { title: "TARGET_SERVICE" },
