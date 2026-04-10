@@ -7,8 +7,6 @@ let appliedFilters = {
 
 let currentPage = 1;
 let pageSize = 10;
-let totalPages = 0;
-let totalElements = 0;
 let hasSubmittedFilters = false;
 
 let appSelect, ifaceSelect;
@@ -79,7 +77,8 @@ function applyRecentRange() {
   const end = new Date();
   const start = new Date(end.getTime() - mins * 60000);
   const pad = n => String(n).padStart(2, "0");
-  const format = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const format = d =>
+    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
   document.getElementById("dateFrom").value = format(start);
   document.getElementById("dateTo").value = format(end);
@@ -106,81 +105,55 @@ function ensurePageSizeControl() {
 
   const select = document.getElementById("pageSizeSelect");
   select.value = String(pageSize);
-  select.addEventListener("change", async (e) => {
+  select.addEventListener("change", async e => {
     pageSize = parseInt(e.target.value, 10) || 10;
     currentPage = 1;
-    if (hasSubmittedFilters) {
-      await refreshLogs();
+
+    if (!hasSubmittedFilters || !hasRequiredFilters(appliedFilters)) {
+      resetTableState();
+      return;
     }
+
+    await renderCurrentPage();
   });
-}
-
-function normalizeLogsResponse(response) {
-  const content = Array.isArray(response?.content)
-    ? response.content
-    : Array.isArray(response?.data)
-      ? response.data
-      : Array.isArray(response)
-        ? response
-        : [];
-
-  const pageNumber = Number(response?.number ?? response?.page ?? response?.pageNumber ?? 0);
-  const totalPagesValue = Number(response?.totalPages ?? response?.pageCount ?? 0);
-  const totalElementsValue = Number(response?.totalElements ?? response?.totalCount ?? content.length ?? 0);
-
-  return {
-    content,
-    pageNumber,
-    totalPages: totalPagesValue,
-    totalElements: totalElementsValue
-  };
 }
 
 function resetTableState() {
   currentPage = 1;
-  totalPages = 0;
-  totalElements = 0;
   refreshTable([]);
-  updateEntriesText(0, 0, 0);
-  renderPager(1, 0, goToPage);
+  updateEntriesText(0, 0);
+  renderPager(1, false, false, goToPage);
 }
 
 async function renderCurrentPage() {
-  if (!hasSubmittedFilters) {
+  if (!hasSubmittedFilters || !hasRequiredFilters(appliedFilters)) {
     resetTableState();
     return;
   }
 
-  const response = await fetchLogs(appliedFilters, currentPage, pageSize);
-  const normalized = normalizeLogsResponse(response);
+  const rows = await fetchLogs(appliedFilters, currentPage, pageSize);
+  const rowsOnPage = Array.isArray(rows) ? rows.length : 0;
 
-  currentPage = normalized.pageNumber + 1;
-  totalPages = normalized.totalPages;
-  totalElements = normalized.totalElements;
+  refreshTable(rows);
 
-  refreshTable(normalized.content);
-
-  if (normalized.content.length > 0 && totalElements > 0) {
-    const startIndex = (normalized.pageNumber * pageSize) + 1;
-    const endIndex = startIndex + normalized.content.length - 1;
-    updateEntriesText(startIndex, endIndex, totalElements);
+  if (rowsOnPage > 0) {
+    const startIndex = (currentPage - 1) * pageSize + 1;
+    const endIndex = startIndex + rowsOnPage - 1;
+    updateEntriesText(startIndex, endIndex);
   } else {
-    updateEntriesText(0, 0, 0);
+    updateEntriesText(0, 0);
   }
 
-  renderPager(currentPage, totalPages, goToPage);
+  const hasPrev = currentPage > 1;
+  const hasNext = rowsOnPage === pageSize;
+  renderPager(currentPage, hasPrev, hasNext, goToPage);
 }
 
 async function goToPage(page) {
-  if (!hasSubmittedFilters) return;
+  if (!hasSubmittedFilters || !hasRequiredFilters(appliedFilters)) return;
   if (page < 1) return;
-  if (totalPages > 0 && page > totalPages) return;
 
   currentPage = page;
-  await renderCurrentPage();
-}
-
-async function refreshLogs() {
   await renderCurrentPage();
 }
 
@@ -205,26 +178,34 @@ document.addEventListener("DOMContentLoaded", async () => {
   ensurePageSizeControl();
   resetTableState();
 
-  appSelect.on("change", async (value) => {
+  appSelect.on("change", async value => {
     const currentInterface = ifaceSelect?.getValue?.() || "";
     await loadInterfaces(value, currentInterface);
   });
 
-  document.getElementById("submitBtn").addEventListener("click", async (e) => {
+  document.getElementById("submitBtn").addEventListener("click", async e => {
     e.preventDefault();
 
     const filters = getFilterValues();
+    console.log("Submit filters:", filters);
+
     if (!hasRequiredFilters(filters)) {
       alert("Please select at least one filter before submitting.");
       hasSubmittedFilters = false;
+      appliedFilters = {
+        applicationCode: "",
+        interfaceCode: "",
+        fromDateTime: "",
+        toDateTime: ""
+      };
       resetTableState();
       return;
     }
 
-    appliedFilters = filters;
+    appliedFilters = { ...filters };
     hasSubmittedFilters = true;
     currentPage = 1;
-    await refreshLogs();
+    await renderCurrentPage();
   });
 
   document.getElementById("clearBtn").addEventListener("click", async () => {
