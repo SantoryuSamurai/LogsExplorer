@@ -284,6 +284,12 @@ body {
   border-radius: 10px;
   padding: 0 12px;
   font-weight: 600;
+  cursor: pointer;
+}
+
+.pager button:hover:not(:disabled) {
+  border-color: #b9c7dd;
+  background: #f8fbff;
 }
 
 .pager button.active {
@@ -295,6 +301,7 @@ body {
 .pager button:disabled {
   opacity: 0.5;
   cursor: not-allowed;
+  pointer-events: none;
 }
 
 .pager-ellipsis {

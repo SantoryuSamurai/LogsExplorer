@@ -1,89 +1,85 @@
-// assets/js/app.js
-
 let appliedFilters = {
-  applicationName: "",
-  interfaceName: "",
-  dateFrom: "",
-  dateTo: "",
-  search: ""
+  applicationCode: "",
+  interfaceCode: "",
+  fromDateTime: "",
+  toDateTime: ""
 };
 
-let currentFilteredLogs = [];
 let currentPage = 1;
 let pageSize = 10;
+let totalPages = 0;
+let totalElements = 0;
+let hasSubmittedFilters = false;
 
-// Tom Select instances for programmatic control
 let appSelect, ifaceSelect;
 
-/**
- * Retrieves current filter values from the UI
- */
 function getFilterValues() {
   return {
-    // Get values from Tom Select instances
-    applicationName: appSelect ? appSelect.getValue().trim() : "",
-    interfaceName: ifaceSelect ? ifaceSelect.getValue().trim() : "",
-    dateFrom: document.getElementById("dateFrom").value,
-    dateTo: document.getElementById("dateTo").value,
-    search: document.getElementById("globalSearch").value.trim()
+    applicationCode: (appSelect?.getValue?.() || "").trim(),
+    interfaceCode: (ifaceSelect?.getValue?.() || "").trim(),
+    fromDateTime: document.getElementById("dateFrom")?.value || "",
+    toDateTime: document.getElementById("dateTo")?.value || ""
   };
 }
 
-/**
- * Helper to update Tom Select options dynamically
- * Fixed: Removed adding placeholder as a selectable option to prevent redundancy.
- */
-function updateSearchableSelect(instance, items) {
+function hasRequiredFilters(filters) {
+  return Boolean(
+    (filters.applicationCode || "").trim() ||
+    (filters.interfaceCode || "").trim() ||
+    (filters.fromDateTime || "").trim() ||
+    (filters.toDateTime || "").trim()
+  );
+}
+
+function updateSearchableSelect(instance, items, preserveValue = "") {
   if (!instance) return;
 
-  // Clear existing options
   instance.clearOptions();
-  
-  // Add actual data items from the API
-  items.forEach(item => {
-    instance.addOption({ value: item, text: item });
-  });
-  
-  // Refresh the UI and reset to empty state (which shows the placeholder)
+  items.forEach(item => instance.addOption({ value: item, text: item }));
   instance.refreshOptions(false);
-  instance.setValue(""); 
+
+  if (preserveValue && items.includes(preserveValue)) {
+    instance.setValue(preserveValue, true);
+  } else {
+    instance.setValue("", true);
+  }
 }
 
 async function loadApplications() {
-  const apps = await fetchApplicationCodes(); // From api.js
-  updateSearchableSelect(appSelect, apps);
+  const currentValue = appSelect?.getValue?.() || "";
+  const apps = await fetchApplicationCodes();
+  updateSearchableSelect(appSelect, apps, currentValue);
 }
 
-async function loadInterfaces(applicationName = "") {
-  const interfaces = await fetchInterfaceCodes(applicationName); // From api.js
-  updateSearchableSelect(ifaceSelect, interfaces);
+async function loadInterfaces(applicationCode = "", preserveSelectedInterface = "") {
+  const interfaces = await fetchInterfaceCodes(applicationCode);
+  updateSearchableSelect(ifaceSelect, interfaces, preserveSelectedInterface);
 }
 
 function clearFilters() {
-  document.getElementById("filterForm").reset();
-  
-  // Reset Tom Select components to show their placeholders
-  if (appSelect) appSelect.setValue("");
-  if (ifaceSelect) ifaceSelect.setValue("");
-  
-  document.getElementById("dateFrom").value = "";
-  document.getElementById("dateTo").value = "";
-  document.getElementById("recentRange").value = "";
-  document.getElementById("globalSearch").value = "";
+  document.getElementById("filterForm")?.reset();
+  appSelect?.setValue("", true);
+  ifaceSelect?.setValue("", true);
+
+  const dateFrom = document.getElementById("dateFrom");
+  const dateTo = document.getElementById("dateTo");
+  const recentRange = document.getElementById("recentRange");
+  const globalSearch = document.getElementById("globalSearch");
+
+  if (dateFrom) dateFrom.value = "";
+  if (dateTo) dateTo.value = "";
+  if (recentRange) recentRange.value = "";
+  if (globalSearch) globalSearch.value = "";
 }
 
-// ... (Paging and Table logic remains the same as your previous working version)
-
 function applyRecentRange() {
-  const mins = parseInt(document.getElementById("recentRange").value, 10);
+  const mins = parseInt(document.getElementById("recentRange")?.value, 10);
   if (!mins) return;
 
   const end = new Date();
   const start = new Date(end.getTime() - mins * 60000);
-
   const pad = n => String(n).padStart(2, "0");
-  const format = d =>
-    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  const format = d => `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
   document.getElementById("dateFrom").value = format(start);
   document.getElementById("dateTo").value = format(end);
@@ -98,7 +94,7 @@ function ensurePageSizeControl() {
   control.id = "pageSizeControl";
   control.innerHTML = `
     <label class="page-size-label" for="pageSizeSelect">Rows per page</label>
-    <select id="pageSizeSelect" class="form-select form-select-sm page-size-select">
+    <select id="pageSizeSelect" class="form-select page-size-select">
       <option value="10">10</option>
       <option value="25">25</option>
       <option value="50">50</option>
@@ -110,68 +106,85 @@ function ensurePageSizeControl() {
 
   const select = document.getElementById("pageSizeSelect");
   select.value = String(pageSize);
-
-  select.addEventListener("change", (e) => {
+  select.addEventListener("change", async (e) => {
     pageSize = parseInt(e.target.value, 10) || 10;
     currentPage = 1;
-    renderCurrentPage();
+    if (hasSubmittedFilters) {
+      await refreshLogs();
+    }
   });
 }
 
-function getTotalPages() {
-  return currentFilteredLogs.length > 0
-    ? Math.ceil(currentFilteredLogs.length / pageSize)
-    : 0;
+function normalizeLogsResponse(response) {
+  const content = Array.isArray(response?.content)
+    ? response.content
+    : Array.isArray(response?.data)
+      ? response.data
+      : Array.isArray(response)
+        ? response
+        : [];
+
+  const pageNumber = Number(response?.number ?? response?.page ?? response?.pageNumber ?? 0);
+  const totalPagesValue = Number(response?.totalPages ?? response?.pageCount ?? 0);
+  const totalElementsValue = Number(response?.totalElements ?? response?.totalCount ?? content.length ?? 0);
+
+  return {
+    content,
+    pageNumber,
+    totalPages: totalPagesValue,
+    totalElements: totalElementsValue
+  };
 }
 
-function goToPage(page) {
-  currentPage = page;
-  renderCurrentPage();
+function resetTableState() {
+  currentPage = 1;
+  totalPages = 0;
+  totalElements = 0;
+  refreshTable([]);
+  updateEntriesText(0, 0, 0);
+  renderPager(1, 0, goToPage);
 }
 
-function renderCurrentPage() {
-  const total = currentFilteredLogs.length;
-  const totalPages = getTotalPages();
-
-  if (totalPages > 0) {
-    currentPage = Math.min(Math.max(currentPage, 1), totalPages);
-  } else {
-    currentPage = 1;
+async function renderCurrentPage() {
+  if (!hasSubmittedFilters) {
+    resetTableState();
+    return;
   }
 
-  const startIndex = total > 0 ? (currentPage - 1) * pageSize : 0;
-  const endIndex = total > 0 ? Math.min(startIndex + pageSize, total) : 0;
-  const pageData = total > 0 ? currentFilteredLogs.slice(startIndex, endIndex) : [];
+  const response = await fetchLogs(appliedFilters, currentPage, pageSize);
+  const normalized = normalizeLogsResponse(response);
 
-  refreshTable(pageData); // From table.js
+  currentPage = normalized.pageNumber + 1;
+  totalPages = normalized.totalPages;
+  totalElements = normalized.totalElements;
 
-  if (total > 0) {
-    updateEntriesText(startIndex + 1, endIndex, total); // From table.js
+  refreshTable(normalized.content);
+
+  if (normalized.content.length > 0 && totalElements > 0) {
+    const startIndex = (normalized.pageNumber * pageSize) + 1;
+    const endIndex = startIndex + normalized.content.length - 1;
+    updateEntriesText(startIndex, endIndex, totalElements);
   } else {
     updateEntriesText(0, 0, 0);
   }
 
-  renderPager(currentPage, totalPages, goToPage); // From table.js
+  renderPager(currentPage, totalPages, goToPage);
 }
 
-function refreshLogs() {
-  currentFilteredLogs = getFilteredLogs(appliedFilters); // From api.js
-  currentPage = 1;
-  renderCurrentPage();
+async function goToPage(page) {
+  if (!hasSubmittedFilters) return;
+  if (page < 1) return;
+  if (totalPages > 0 && page > totalPages) return;
+
+  currentPage = page;
+  await renderCurrentPage();
 }
 
-function applyFiltersFromUI() {
-  appliedFilters = getFilterValues();
-  refreshLogs();
-}
-
-function applyLiveSearch() {
-  appliedFilters.search = document.getElementById("globalSearch").value.trim();
-  refreshLogs();
+async function refreshLogs() {
+  await renderCurrentPage();
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  // 1. Initialize Tom Select with specific placeholders
   appSelect = new TomSelect("#applicationName", {
     create: false,
     placeholder: "Select Applications...",
@@ -186,57 +199,49 @@ document.addEventListener("DOMContentLoaded", async () => {
     sortField: { field: "text", direction: "asc" }
   });
 
-  // 2. Initial Data Load
   await Promise.all([loadApplications(), loadInterfaces()]);
 
-  // 3. Initialize Logs Table
-  initLogsTable([]); 
+  initLogsTable([]);
   ensurePageSizeControl();
-  refreshLogs();
+  resetTableState();
 
-  // --- Event Listeners ---
+  appSelect.on("change", async (value) => {
+    const currentInterface = ifaceSelect?.getValue?.() || "";
+    await loadInterfaces(value, currentInterface);
+  });
 
-  appSelect.on('change', async (value) => {
-        await loadInterfaces(value);
-    });
-
-  document.getElementById("submitBtn").addEventListener("click", (e) => {
+  document.getElementById("submitBtn").addEventListener("click", async (e) => {
     e.preventDefault();
-    // applyFiltersFromUI();
-    appliedFilters = {
-            applicationName: appSelect.getValue(),
-            interfaceName: ifaceSelect.getValue(),
-            dateFrom: document.getElementById("dateFrom").value,
-            dateTo: document.getElementById("dateTo").value,
-            search: document.getElementById("globalSearch").value.trim()
-        };
+
+    const filters = getFilterValues();
+    if (!hasRequiredFilters(filters)) {
+      alert("Please select at least one filter before submitting.");
+      hasSubmittedFilters = false;
+      resetTableState();
+      return;
+    }
+
+    appliedFilters = filters;
+    hasSubmittedFilters = true;
+    currentPage = 1;
+    await refreshLogs();
   });
 
-  document.getElementById("globalSearch").addEventListener("input", () => {
-    applyLiveSearch();
-  });
-
-  document.getElementById("clearBtn").addEventListener("click", () => {
+  document.getElementById("clearBtn").addEventListener("click", async () => {
     clearFilters();
     appliedFilters = {
-      applicationName: "",
-      interfaceName: "",
-      dateFrom: "",
-      dateTo: "",
-      search: ""
+      applicationCode: "",
+      interfaceCode: "",
+      fromDateTime: "",
+      toDateTime: ""
     };
-    currentPage = 1;
-    loadInterfaces();
-    refreshLogs();
+    hasSubmittedFilters = false;
+    await loadInterfaces();
+    resetTableState();
   });
 
   document.getElementById("recentRange").addEventListener("change", () => {
     applyRecentRange();
-  });
-
-  // Update interface dropdown when application changes
-  appSelect.on('change', (value) => {
-    loadInterfaces(value);
   });
 
   document.getElementById("dateFrom").addEventListener("change", () => {
