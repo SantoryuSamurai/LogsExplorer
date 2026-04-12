@@ -297,14 +297,6 @@ body {
   background: var(--primary);
   color: #fff;
   border-color: var(--primary);
-}
-
-.pager button.faded-active {
-  opacity: 0.5;
-  box-shadow: none;
-}
-
-.pager button.active:not(.faded-active) {
   opacity: 1;
   box-shadow: 0 10px 24px rgba(79, 124, 255, 0.28);
 }
@@ -316,6 +308,7 @@ body {
 }
 
 .pager button.active:disabled {
+  opacity: 1;
   cursor: default;
   pointer-events: none;
 }

@@ -36,7 +36,6 @@ function renderRows(data) {
 
 function initLogsTable(initialData) {
   if (logsTable) logsTable.destroy();
-
   document.querySelector("#logsTable").innerHTML = "<thead></thead><tbody></tbody>";
 
   logsTable = new DataTable("#logsTable", {
@@ -68,33 +67,26 @@ function refreshTable(data) {
   logsTable.clear();
   logsTable.rows.add(renderRows(data));
   logsTable.draw();
-  logsTable.columns.adjust();
 }
 
 document.addEventListener("DOMContentLoaded", () => {
-  const detailModalEl = document.getElementById("detailModal");
+  const detailModal = new bootstrap.Modal(document.getElementById("detailModal"));
   const modalContent = document.getElementById("modalContent");
   const copyBtn = document.getElementById("copyBtn");
 
-  if (!detailModalEl || !modalContent || !copyBtn) return;
-
-  const detailModal = new bootstrap.Modal(detailModalEl);
-
-  document.querySelector("#logsTable tbody")?.addEventListener("click", e => {
+  document.querySelector("#logsTable tbody").addEventListener("click", e => {
     const target = e.target.closest(".truncate-cell");
     if (!target) return;
-
-    modalContent.textContent = target.textContent || "";
+    modalContent.textContent = target.textContent;
     detailModal.show();
   });
 
   copyBtn.addEventListener("click", () => {
-    const text = modalContent.textContent || "";
+    const text = modalContent.textContent;
     navigator.clipboard.writeText(text).then(() => {
       const originalHtml = copyBtn.innerHTML;
-      copyBtn.innerHTML = `<i class="bi bi-check-lg"></i> Copied!`;
+      copyBtn.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
       copyBtn.classList.replace("btn-primary", "btn-success");
-
       setTimeout(() => {
         copyBtn.innerHTML = originalHtml;
         copyBtn.classList.replace("btn-success", "btn-primary");
@@ -103,32 +95,32 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 });
 
-function updateEntriesText(start, end, total) {
+function updateEntriesText(start, end, total = end) {
   const el = document.getElementById("entriesText");
   if (!el) return;
 
-  if (!start || !end || !total) {
+  if (!start && !end && !total) {
     el.textContent = "Showing 0-0 of 0 entries";
-    return;
+  } else {
+    el.textContent = `Showing ${start}-${end} of ${total} entries`;
   }
-
-  el.textContent = `Showing ${start}-${end} of ${total} entries`;
 }
 
-function renderPager(currentPage, hasPrev, hasNext, onPageChange) {
+function renderPager(currentPage, totalPages, onPageChange) {
   const pager = document.getElementById("pager");
   if (!pager) return;
 
   pager.innerHTML = "";
 
-  const createBtn = (label, page, disabled = false, active = false, faded = false) => {
+  if (!totalPages || totalPages < 1) return;
+
+  const createBtn = (label, page, disabled = false, active = false) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.textContent = label;
     btn.disabled = disabled;
 
     if (active) btn.classList.add("active");
-    if (faded) btn.classList.add("faded-active");
 
     if (!disabled) {
       btn.addEventListener("click", () => onPageChange(page));
@@ -142,16 +134,46 @@ function renderPager(currentPage, hasPrev, hasNext, onPageChange) {
     pager.appendChild(btn);
   };
 
-  const currentPageShouldBeFullBlue = hasPrev || hasNext;
-  const currentPageShouldBeFadedBlue = !hasPrev && !hasNext;
+  const createEllipsis = () => {
+    const span = document.createElement("span");
+    span.className = "pager-ellipsis";
+    span.textContent = "...";
+    pager.appendChild(span);
+  };
 
-  createBtn("Prev", currentPage - 1, !hasPrev, false, false);
-  createBtn(
-    String(currentPage),
-    currentPage,
-    true,
-    currentPageShouldBeFullBlue || currentPageShouldBeFadedBlue,
-    currentPageShouldBeFadedBlue
-  );
-  createBtn("Next", currentPage + 1, !hasNext, false, false);
+  const hasPrev = currentPage > 1;
+  const hasNext = currentPage < totalPages;
+
+  createBtn("Prev", currentPage - 1, !hasPrev, false);
+
+  if (totalPages <= 4) {
+    for (let page = 1; page <= totalPages; page++) {
+      const isCurrent = page === currentPage;
+      createBtn(String(page), page, isCurrent, isCurrent);
+    }
+  } else {
+    createBtn("1", 1, currentPage === 1, currentPage === 1);
+
+    if (currentPage > 3) {
+      createEllipsis();
+    }
+
+    const startPage = Math.max(2, currentPage - 1);
+    const endPage = Math.min(totalPages - 1, currentPage + 1);
+
+    for (let page = startPage; page <= endPage; page++) {
+      if (page !== 1 && page !== totalPages) {
+        const isCurrent = page === currentPage;
+        createBtn(String(page), page, isCurrent, isCurrent);
+      }
+    }
+
+    if (currentPage < totalPages - 2) {
+      createEllipsis();
+    }
+
+    createBtn(String(totalPages), totalPages, currentPage === totalPages, currentPage === totalPages);
+  }
+
+  createBtn("Next", currentPage + 1, !hasNext, false);
 }

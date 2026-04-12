@@ -92,7 +92,7 @@ function ensurePageSizeControl() {
   control.className = "page-size-control";
   control.id = "pageSizeControl";
   control.innerHTML = `
-    <label class="page-size-label" for="pageSizeSelect">Rows per page</label>
+    <label for="pageSizeSelect" class="page-size-label">Rows per page</label>
     <select id="pageSizeSelect" class="form-select page-size-select">
       <option value="10">10</option>
       <option value="25">25</option>
@@ -122,7 +122,7 @@ function resetTableState() {
   currentPage = 1;
   refreshTable([]);
   updateEntriesText(0, 0, 0);
-  renderPager(1, false, false, goToPage);
+  renderPager(1, 0, goToPage);
 }
 
 async function renderCurrentPage() {
@@ -131,29 +131,26 @@ async function renderCurrentPage() {
     return;
   }
 
-  const response = await fetchLogs(appliedFilters, currentPage, pageSize);
+  const result = await fetchLogs(appliedFilters, currentPage, pageSize);
 
-  const rows = Array.isArray(response?.content) ? response.content : [];
-  const totalElements = Number(response?.totalElements || 0);
-  const totalPages = Number(response?.totalPages || 0);
-  const backendPageNumber = Number(response?.number || 0);
+  const content = Array.isArray(result?.content) ? result.content : [];
+  const totalElements = Number(result?.totalElements || 0);
+  const totalPages = Number(result?.totalPages || 0);
+  const backendPageNumber = Number(result?.number || 0);
 
   currentPage = backendPageNumber + 1;
 
-  refreshTable(rows);
+  refreshTable(content);
 
-  if (rows.length > 0 && totalElements > 0) {
-    const startIndex = backendPageNumber * pageSize + 1;
-    const endIndex = startIndex + rows.length - 1;
+  if (content.length > 0) {
+    const startIndex = currentPage * pageSize - pageSize + 1;
+    const endIndex = Math.min(startIndex + content.length - 1, totalElements);
     updateEntriesText(startIndex, endIndex, totalElements);
   } else {
     updateEntriesText(0, 0, 0);
   }
 
-  const hasPrev = currentPage > 1;
-  const hasNext = currentPage < totalPages;
-
-  renderPager(currentPage, hasPrev, hasNext, goToPage);
+  renderPager(currentPage, totalPages, goToPage);
 }
 
 async function goToPage(page) {
