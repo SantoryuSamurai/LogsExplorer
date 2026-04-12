@@ -22,7 +22,7 @@ function clickableTruncate(text) {
 }
 
 function renderRows(data) {
-  return data.map(item => ([
+  return data.map(item => [
     escapeHtml(item.sequenceId),
     escapeHtml(item.interfaceCode),
     escapeHtml(item.applicationCode),
@@ -30,15 +30,14 @@ function renderRows(data) {
     formatLoggingStage(item.loggingStage),
     escapeHtml(item.targetService),
     escapeHtml(item.logTime),
-    clickableTruncate(item.loggedMessage),
-  ]));
+    clickableTruncate(item.loggedMessage)
+  ]);
 }
 
-function initLogsTable(initialData = []) {
-  if (logsTable) {
-    logsTable.destroy();
-    document.querySelector("#logsTable").innerHTML = "<thead></thead><tbody></tbody>";
-  }
+function initLogsTable(initialData) {
+  if (logsTable) logsTable.destroy();
+
+  document.querySelector("#logsTable").innerHTML = "<thead></thead><tbody></tbody>";
 
   logsTable = new DataTable("#logsTable", {
     data: renderRows(initialData),
@@ -56,9 +55,9 @@ function initLogsTable(initialData = []) {
     searching: false,
     info: false,
     ordering: false,
-    responsive: false, // Set to false to allow our custom horizontal scroll
-    autoWidth: false,   // Disable automatic column width calculation
-    scrollX: false      // We handle scrolling via the Bootstrap .table-responsive wrapper
+    responsive: false,
+    autoWidth: false,
+    scrollX: false
   });
 
   return logsTable;
@@ -69,48 +68,51 @@ function refreshTable(data) {
   logsTable.clear();
   logsTable.rows.add(renderRows(data));
   logsTable.draw();
+  logsTable.columns.adjust();
 }
 
-
-
 document.addEventListener("DOMContentLoaded", () => {
-  const detailModal = new bootstrap.Modal(document.getElementById('detailModal'));
-  const modalContent = document.getElementById('modalContent');
-  const copyBtn = document.getElementById('copyBtn');
+  const detailModalEl = document.getElementById("detailModal");
+  const modalContent = document.getElementById("modalContent");
+  const copyBtn = document.getElementById("copyBtn");
 
-  // Handle cell click
-  document.querySelector('#logsTable tbody').addEventListener('click', (e) => {
-    const target = e.target.closest('.truncate-cell');
-    if (target) {
-      modalContent.textContent = target.textContent;
-      detailModal.show();
-    }
+  if (!detailModalEl || !modalContent || !copyBtn) return;
+
+  const detailModal = new bootstrap.Modal(detailModalEl);
+
+  document.querySelector("#logsTable tbody")?.addEventListener("click", e => {
+    const target = e.target.closest(".truncate-cell");
+    if (!target) return;
+
+    modalContent.textContent = target.textContent || "";
+    detailModal.show();
   });
-  copyBtn.addEventListener('click', () => {
-    const text = modalContent.textContent;
+
+  copyBtn.addEventListener("click", () => {
+    const text = modalContent.textContent || "";
     navigator.clipboard.writeText(text).then(() => {
       const originalHtml = copyBtn.innerHTML;
-      copyBtn.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
-      copyBtn.classList.replace('btn-primary', 'btn-success');
-      
+      copyBtn.innerHTML = `<i class="bi bi-check-lg"></i> Copied!`;
+      copyBtn.classList.replace("btn-primary", "btn-success");
+
       setTimeout(() => {
         copyBtn.innerHTML = originalHtml;
-        copyBtn.classList.replace('btn-success', 'btn-primary');
+        copyBtn.classList.replace("btn-success", "btn-primary");
       }, 2000);
     });
   });
 });
 
-
-function updateEntriesText(start, end) {
+function updateEntriesText(start, end, total) {
   const el = document.getElementById("entriesText");
   if (!el) return;
 
-  if (!start || !end) {
-    el.textContent = "Showing 0-0 entries";
-  } else {
-    el.textContent = `Showing ${start}-${end} entries`;
+  if (!start || !end || !total) {
+    el.textContent = "Showing 0-0 of 0 entries";
+    return;
   }
+
+  el.textContent = `Showing ${start}-${end} of ${total} entries`;
 }
 
 function renderPager(currentPage, hasPrev, hasNext, onPageChange) {
@@ -125,9 +127,7 @@ function renderPager(currentPage, hasPrev, hasNext, onPageChange) {
     btn.textContent = label;
     btn.disabled = disabled;
 
-    if (active) {
-      btn.classList.add("active");
-    }
+    if (active) btn.classList.add("active");
 
     if (!disabled) {
       btn.addEventListener("click", () => onPageChange(page));

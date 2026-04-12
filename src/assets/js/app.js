@@ -121,7 +121,7 @@ function ensurePageSizeControl() {
 function resetTableState() {
   currentPage = 1;
   refreshTable([]);
-  updateEntriesText(0, 0);
+  updateEntriesText(0, 0, 0);
   renderPager(1, false, false, goToPage);
 }
 
@@ -131,21 +131,28 @@ async function renderCurrentPage() {
     return;
   }
 
-  const rows = await fetchLogs(appliedFilters, currentPage, pageSize);
-  const rowsOnPage = Array.isArray(rows) ? rows.length : 0;
+  const response = await fetchLogs(appliedFilters, currentPage, pageSize);
+
+  const rows = Array.isArray(response?.content) ? response.content : [];
+  const totalElements = Number(response?.totalElements || 0);
+  const totalPages = Number(response?.totalPages || 0);
+  const backendPageNumber = Number(response?.number || 0);
+
+  currentPage = backendPageNumber + 1;
 
   refreshTable(rows);
 
-  if (rowsOnPage > 0) {
-    const startIndex = (currentPage - 1) * pageSize + 1;
-    const endIndex = startIndex + rowsOnPage - 1;
-    updateEntriesText(startIndex, endIndex);
+  if (rows.length > 0 && totalElements > 0) {
+    const startIndex = backendPageNumber * pageSize + 1;
+    const endIndex = startIndex + rows.length - 1;
+    updateEntriesText(startIndex, endIndex, totalElements);
   } else {
-    updateEntriesText(0, 0);
+    updateEntriesText(0, 0, 0);
   }
 
   const hasPrev = currentPage > 1;
-  const hasNext = rowsOnPage === pageSize;
+  const hasNext = currentPage < totalPages;
+
   renderPager(currentPage, hasPrev, hasNext, goToPage);
 }
 
