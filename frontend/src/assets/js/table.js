@@ -121,17 +121,20 @@ function renderPager(currentPage, hasPrev, hasNext, onPageChange) {
 
   pager.innerHTML = "";
 
-  const createBtn = (label, page, disabled = false, active = false) => {
+  const createBtn = (label, page, disabled = false, active = false, faded = false) => {
     const btn = document.createElement("button");
     btn.type = "button";
     btn.textContent = label;
     btn.disabled = disabled;
 
     if (active) btn.classList.add("active");
+    if (faded) btn.classList.add("faded-active");
 
     if (!disabled) {
       btn.addEventListener("click", () => onPageChange(page));
       btn.style.cursor = "pointer";
+    } else if (active) {
+      btn.style.cursor = "default";
     } else {
       btn.style.cursor = "not-allowed";
     }
@@ -139,7 +142,16 @@ function renderPager(currentPage, hasPrev, hasNext, onPageChange) {
     pager.appendChild(btn);
   };
 
-  createBtn("Prev", currentPage - 1, !hasPrev, false);
-  createBtn(String(currentPage), currentPage, true, true);
-  createBtn("Next", currentPage + 1, !hasNext, false);
+  const currentPageShouldBeFullBlue = hasPrev || hasNext;
+  const currentPageShouldBeFadedBlue = !hasPrev && !hasNext;
+
+  createBtn("Prev", currentPage - 1, !hasPrev, false, false);
+  createBtn(
+    String(currentPage),
+    currentPage,
+    true,
+    currentPageShouldBeFullBlue || currentPageShouldBeFadedBlue,
+    currentPageShouldBeFadedBlue
+  );
+  createBtn("Next", currentPage + 1, !hasNext, false, false);
 }

@@ -285,6 +285,7 @@ body {
   padding: 0 12px;
   font-weight: 600;
   cursor: pointer;
+  transition: all 0.2s ease;
 }
 
 .pager button:hover:not(:disabled) {
@@ -298,9 +299,24 @@ body {
   border-color: var(--primary);
 }
 
-.pager button:disabled {
+.pager button.faded-active {
+  opacity: 0.5;
+  box-shadow: none;
+}
+
+.pager button.active:not(.faded-active) {
+  opacity: 1;
+  box-shadow: 0 10px 24px rgba(79, 124, 255, 0.28);
+}
+
+.pager button:disabled:not(.active) {
   opacity: 0.5;
   cursor: not-allowed;
+  pointer-events: none;
+}
+
+.pager button.active:disabled {
+  cursor: default;
   pointer-events: none;
 }
 
