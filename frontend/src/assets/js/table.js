@@ -23,14 +23,14 @@ function clickableTruncate(text) {
 
 function renderRows(data) {
   return data.map(item => [
-    escapeHtml(item.sequenceId),
-    escapeHtml(item.interfaceCode),
-    escapeHtml(item.applicationCode),
-    escapeHtml(item.transactionId),
-    formatLoggingStage(item.loggingStage),
-    escapeHtml(item.targetService),
-    escapeHtml(item.logTime),
-    clickableTruncate(item.loggedMessage)
+    `<span class="seq-id">${escapeHtml(item.sequenceId)}</span>`,
+    `<span class="interface-code-cell">${escapeHtml(item.interfaceCode)}</span>`,
+    `<span class="application-code-cell">${escapeHtml(item.applicationCode)}</span>`,
+    `<div class="txn-id-wrap">${escapeHtml(item.transactionId)}</div>`,
+    `<span class="logging-stage-cell">${formatLoggingStage(item.loggingStage)}</span>`,
+    `<span class="target-service-cell">${escapeHtml(item.targetService)}</span>`,
+    `<span class="log-time-cell">${escapeHtml(item.logTime)}</span>`,
+    `<div class="log-msg-cell">${clickableTruncate(item.loggedMessage)}</div>`
   ]);
 }
 

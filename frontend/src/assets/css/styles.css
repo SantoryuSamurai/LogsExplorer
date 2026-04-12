@@ -101,11 +101,11 @@ body {
   width: 38px;
   height: 38px;
   border-radius: 50%;
+  background: linear-gradient(135deg, #111827, #6b7280);
   overflow: hidden;
   border: 2px solid #fff;
   box-shadow: 0 6px 18px rgba(17, 24, 39, 0.15);
   flex: 0 0 auto;
-  background: linear-gradient(135deg, #111827, #6b7280);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -182,7 +182,6 @@ body {
   background: rgba(255, 255, 255, 0.96);
   border: 1px solid rgba(229, 235, 245, 0.95);
   border-radius: 20px;
-  /* overflow: scroll; */
   box-shadow: 0 18px 40px rgba(30, 41, 59, 0.05);
 }
 
@@ -361,6 +360,186 @@ body {
   display: none !important;
 }
 
+/* Modal styling */
+#detailModal .modal-content {
+  border-radius: 20px;
+  border: none;
+  box-shadow: 0 20px 60px rgba(31, 41, 55, 0.15);
+}
+
+#detailModal .detail-container {
+  background: #f9fafb;
+  padding: 1.5rem;
+  border-radius: 12px;
+  position: relative;
+  border: 1px solid var(--border);
+}
+
+#detailModal pre {
+  margin: 0;
+  white-space: pre-wrap;
+  word-break: break-all;
+  font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace;
+  font-size: 0.9rem;
+  color: var(--text);
+  max-height: 400px;
+  overflow-y: auto;
+}
+
+.modal-header {
+  display: flex;
+  justify-content: space-between;
+  padding-right: 30px;
+  padding-left: 30px;
+}
+
+.model-nav {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  gap: 30px;
+}
+
+/* Table scroll */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Fixed table layout */
+#logsTable {
+  table-layout: fixed;
+  min-width: 1500px;
+}
+
+/* Base cells */
+#logsTable th,
+#logsTable td {
+  overflow: hidden;
+  vertical-align: middle;
+  padding: 0.85rem 0.9rem;
+}
+
+/* 1. Sequence ID */
+#logsTable th:nth-child(1),
+#logsTable td:nth-child(1) {
+  width: 120px;
+  min-width: 120px;
+  text-align: center;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+/* 2. Interface Code */
+#logsTable th:nth-child(2),
+#logsTable td:nth-child(2) {
+  width: 180px;
+  min-width: 180px;
+}
+
+/* 3. Application Code */
+#logsTable th:nth-child(3),
+#logsTable td:nth-child(3) {
+  width: 180px;
+  min-width: 180px;
+}
+
+/* 4. Transaction ID */
+#logsTable th:nth-child(4),
+#logsTable td:nth-child(4) {
+  width: 260px;
+  min-width: 260px;
+  text-align: left;
+  vertical-align: top;
+}
+
+.txn-id-wrap {
+  display: block;
+  width: 100%;
+  white-space: normal;
+  overflow-wrap: anywhere;
+  word-break: break-word;
+  line-height: 1.35;
+  /* font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, monospace; */
+  font-size: 0.88rem;
+}
+
+/* 5. Logging Stage */
+#logsTable th:nth-child(5),
+#logsTable td:nth-child(5) {
+  width: 160px;
+  min-width: 160px;
+}
+
+/* 6. Target Service */
+#logsTable th:nth-child(6),
+#logsTable td:nth-child(6) {
+  width: 180px;
+  min-width: 180px;
+}
+
+/* 7. Log Time */
+#logsTable th:nth-child(7),
+#logsTable td:nth-child(7) {
+  width: 190px;
+  min-width: 190px;
+  white-space: nowrap;
+}
+
+/* 8. Logged Message */
+#logsTable th:nth-child(8),
+#logsTable td:nth-child(8) {
+  width: 420px;
+  min-width: 420px;
+  text-align: left;
+}
+
+.seq-id {
+  display: inline-block;
+  min-width: 72px;
+  text-align: center;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+}
+
+.truncate-cell {
+  display: block;
+  width: 100%;
+  max-width: 100%;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  padding: 4px 0;
+  text-align: left;
+  line-height: 1.4;
+  transition: color 0.2s ease;
+}
+
+.truncate-cell:hover {
+  color: var(--primary);
+  text-decoration: underline;
+}
+
+/* Custom scrollbar */
+.table-responsive::-webkit-scrollbar {
+  height: 8px;
+}
+
+.table-responsive::-webkit-scrollbar-track {
+  background: #f1f1f1;
+  border-radius: 10px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 10px;
+}
+
+.table-responsive::-webkit-scrollbar-thumb:hover {
+  background: var(--primary);
+}
+
 @media (max-width: 992px) {
   .search-box {
     width: 100%;
@@ -388,136 +567,3 @@ body {
     width: 100%;
   }
 }
-/* Add this to assets/css/styles.css */
-
-/* Truncate table cells to a single line */
-.truncate-cell {
-  max-width: 180px; /* Adjust width as needed */
-  white-space: nowrap;
-  /* overflow: hidden; */
-  text-overflow: ellipsis;
-  cursor: pointer;
-  transition: color 0.2s;
-}
-
-.truncate-cell:hover {
-  color: var(--primary);
-  text-decoration: underline;
-}
-
-/* Modal styling for the detail view */
-#detailModal .modal-content {
-  border-radius: 20px;
-  border: none;
-  box-shadow: 0 20px 60px rgba(31, 41, 55, 0.15);
-}
-
-#detailModal .detail-container {
-  background: #f9fafb;
-  padding: 1.5rem;
-  border-radius: 12px;
-  position: relative;
-  border: 1px solid var(--border);
-}
-
-#detailModal pre {
-  margin: 0;
-  white-space: pre-wrap;
-  word-break: break-all;
-  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
-  font-size: 0.9rem;
-  color: var(--text);
-  max-height: 400px;
-  overflow-y: auto;
-}
-
-.modal-header{
-  display: flex;
-  justify-content: space-between;
-  padding-right: 30px;
-  padding-left: 30px;
-}
-
-.model-nav{
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  gap: 30px;
-}
-
-/* #copyBtn {
-  position: absolute;
-  top: 10px;
-  right: 10px;
-  z-index: 10;
-} */
-
-/* Add/Update in assets/css/styles.css */
-
-/* 1. Ensure the wrapper allows horizontal scrolling */
-.table-responsive {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
-/* 2. Set the table to fixed layout so column widths are respected */
-#logsTable {
-  table-layout: fixed;
-  min-width: 1400px; /* Forces horizontal scroll on smaller containers */
-}
-
-/* 3. Define fixed widths for columns */
-#logsTable th, 
-#logsTable td {
-  width: 150px; /* Default width for standard columns */
-  overflow: hidden;
-}
-
-/* 4. Assign larger fixed widths for data-heavy columns */
-#logsTable th:nth-child(2), /* Interface Code */
-#logsTable td:nth-child(2) { width: 180px; }
-
-#logsTable th:nth-child(5), /* Transaction ID */
-#logsTable td:nth-child(5) { width: 200px; }
-
-#logsTable th:last-child,   /* Logged Message */
-#logsTable td:last-child { 
-  width: 400px; 
-}
-
-/* 5. Truncation logic with visual feedback */
-.truncate-cell {
-  width: 100%;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer;
-  padding: 4px 0;
-  transition: color 0.2s ease;
-}
-
-.truncate-cell:hover {
-  color: var(--primary);
-  text-decoration: underline;
-}
-
-/* Custom scrollbar for the table */
-.table-responsive::-webkit-scrollbar {
-  height: 8px;
-}
-.table-responsive::-webkit-scrollbar-track {
-  background: #f1f1f1;
-  border-radius: 10px;
-}
-.table-responsive::-webkit-scrollbar-thumb {
-  background: #c1c1c1;
-  border-radius: 10px;
-}
-.table-responsive::-webkit-scrollbar-thumb:hover {
-  background: var(--primary);
-}
-
-/* #logsTable{
-  align-items: center;
-  justify-content: center;
-} */
