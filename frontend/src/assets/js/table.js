@@ -36,6 +36,7 @@ function renderRows(data) {
 
 function initLogsTable(initialData) {
   if (logsTable) logsTable.destroy();
+
   document.querySelector("#logsTable").innerHTML = "<thead></thead><tbody></tbody>";
 
   logsTable = new DataTable("#logsTable", {
@@ -68,32 +69,6 @@ function refreshTable(data) {
   logsTable.rows.add(renderRows(data));
   logsTable.draw();
 }
-
-document.addEventListener("DOMContentLoaded", () => {
-  const detailModal = new bootstrap.Modal(document.getElementById("detailModal"));
-  const modalContent = document.getElementById("modalContent");
-  const copyBtn = document.getElementById("copyBtn");
-
-  document.querySelector("#logsTable tbody").addEventListener("click", e => {
-    const target = e.target.closest(".truncate-cell");
-    if (!target) return;
-    modalContent.textContent = target.textContent;
-    detailModal.show();
-  });
-
-  copyBtn.addEventListener("click", () => {
-    const text = modalContent.textContent;
-    navigator.clipboard.writeText(text).then(() => {
-      const originalHtml = copyBtn.innerHTML;
-      copyBtn.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
-      copyBtn.classList.replace("btn-primary", "btn-success");
-      setTimeout(() => {
-        copyBtn.innerHTML = originalHtml;
-        copyBtn.classList.replace("btn-success", "btn-primary");
-      }, 2000);
-    });
-  });
-});
 
 function updateEntriesText(start, end, total = end) {
   const el = document.getElementById("entriesText");
@@ -177,3 +152,39 @@ function renderPager(currentPage, totalPages, onPageChange) {
 
   createBtn("Next", currentPage + 1, !hasNext, false);
 }
+
+document.addEventListener("DOMContentLoaded", () => {
+  const detailModalEl = document.getElementById("detailModal");
+  const modalContent = document.getElementById("modalContent");
+  const copyBtn = document.getElementById("copyBtn");
+
+  if (!detailModalEl || !modalContent || !copyBtn) return;
+
+  const detailModal = new bootstrap.Modal(detailModalEl);
+
+  document.addEventListener("click", e => {
+    const target = e.target.closest(".truncate-cell");
+    if (!target) return;
+
+    modalContent.textContent = target.textContent.trim();
+    detailModal.show();
+  });
+
+  copyBtn.addEventListener("click", async () => {
+    const text = modalContent.textContent || "";
+
+    try {
+      await navigator.clipboard.writeText(text);
+      const originalHtml = copyBtn.innerHTML;
+      copyBtn.innerHTML = '<i class="bi bi-check-lg"></i> Copied!';
+      copyBtn.classList.replace("btn-primary", "btn-success");
+
+      setTimeout(() => {
+        copyBtn.innerHTML = originalHtml;
+        copyBtn.classList.replace("btn-success", "btn-primary");
+      }, 2000);
+    } catch (error) {
+      console.error("Copy failed:", error);
+    }
+  });
+});
