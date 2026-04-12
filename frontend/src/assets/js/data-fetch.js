@@ -76,7 +76,6 @@ async function fetchLogs(filters = {}, page = 1, size = 10) {
     const response = await fetch(url);
     const rawText = await response.text();
     console.log("Logs API status:", response.status);
-    // console.log("Logs API raw response:", rawText);
 
     if (!response.ok) {
       throw new Error(`Failed to fetch logs (${response.status})`);

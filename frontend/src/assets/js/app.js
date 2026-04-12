@@ -29,11 +29,16 @@ function hasRequiredFilters(filters) {
   );
 }
 
-function updateSearchableSelect(instance, items, preserveValue = "") {
+function updateSearchableSelect(instance, items, preserveValue = "", defaultLabel = "All") {
   if (!instance) return;
 
   instance.clearOptions();
-  items.forEach(item => instance.addOption({ value: item, text: item }));
+  instance.addOption({ value: "", text: defaultLabel });
+
+  items.forEach(item => {
+    instance.addOption({ value: item, text: item });
+  });
+
   instance.refreshOptions(false);
 
   if (preserveValue && items.includes(preserveValue)) {
@@ -46,12 +51,14 @@ function updateSearchableSelect(instance, items, preserveValue = "") {
 async function loadApplications() {
   const currentValue = appSelect?.getValue?.() || "";
   const apps = await fetchApplicationCodes();
-  updateSearchableSelect(appSelect, apps, currentValue);
+  const sortedApps = Array.isArray(apps) ? [...apps].sort((a, b) => a.localeCompare(b)) : [];
+  updateSearchableSelect(appSelect, sortedApps, currentValue, "All Applications");
 }
 
 async function loadInterfaces(applicationCode = "", preserveSelectedInterface = "") {
   const interfaces = await fetchInterfaceCodes(applicationCode);
-  updateSearchableSelect(ifaceSelect, interfaces, preserveSelectedInterface);
+  const sortedInterfaces = Array.isArray(interfaces) ? [...interfaces].sort((a, b) => a.localeCompare(b)) : [];
+  updateSearchableSelect(ifaceSelect, sortedInterfaces, preserveSelectedInterface, "All Interfaces");
 }
 
 function clearFilters() {
@@ -143,7 +150,7 @@ async function renderCurrentPage() {
   refreshTable(content);
 
   if (content.length > 0) {
-    const startIndex = currentPage * pageSize - pageSize + 1;
+    const startIndex = (currentPage - 1) * pageSize + 1;
     const endIndex = Math.min(startIndex + content.length - 1, totalElements);
     updateEntriesText(startIndex, endIndex, totalElements);
   } else {
@@ -164,16 +171,14 @@ async function goToPage(page) {
 document.addEventListener("DOMContentLoaded", async () => {
   appSelect = new TomSelect("#applicationName", {
     create: false,
-    placeholder: "Select Applications...",
-    allowEmptyOption: true,
-    sortField: { field: "text", direction: "asc" }
+    placeholder: "All Applications",
+    allowEmptyOption: true
   });
 
   ifaceSelect = new TomSelect("#interfaceName", {
     create: false,
-    placeholder: "Select Interfaces...",
-    allowEmptyOption: true,
-    sortField: { field: "text", direction: "asc" }
+    placeholder: "All Interfaces",
+    allowEmptyOption: true
   });
 
   await Promise.all([loadApplications(), loadInterfaces()]);
