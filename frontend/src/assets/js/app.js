@@ -199,7 +199,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     console.log("Submit filters:", filters);
 
     if (!hasRequiredFilters(filters)) {
-      alert("Please select at least one filter before submitting.");
+      alert("Please select a filter before trying.");
       hasSubmittedFilters = false;
       appliedFilters = {
         applicationCode: "",

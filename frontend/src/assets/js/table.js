@@ -162,13 +162,22 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const detailModal = new bootstrap.Modal(detailModalEl);
 
-  document.addEventListener("click", e => {
-    const target = e.target.closest(".truncate-cell");
-    if (!target) return;
+  // Inside document.addEventListener("DOMContentLoaded", ...)
 
-    modalContent.textContent = target.textContent.trim();
-    detailModal.show();
-  });
+document.addEventListener("click", e => {
+  const target = e.target.closest(".truncate-cell");
+  if (!target) return;
+
+  // Get raw text
+  const rawData = target.textContent.trim();
+  
+  // Format it based on content type
+  const formattedData = formatLoggedData(rawData);
+
+  // Inject into modal
+  modalContent.textContent = formattedData;
+  detailModal.show();
+});
 
   copyBtn.addEventListener("click", async () => {
     const text = modalContent.textContent || "";
@@ -188,3 +197,59 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   });
 });
+
+
+/**
+ * Detects and formats JSON or XML strings for pretty-printing.
+ */
+function formatLoggedData(rawText) {
+  const text = rawText.trim();
+
+  // 1. Try JSON
+  if (text.startsWith('{') || text.startsWith('[')) {
+    try {
+      const parsed = JSON.parse(text);
+      return JSON.stringify(parsed, null, 2);
+    } catch (e) {
+      /* Not valid JSON, move to next check */
+    }
+  }
+
+  // 2. Try XML
+  if (text.startsWith('<')) {
+    try {
+      return formatXml(text);
+    } catch (e) {
+      /* Not valid XML, return as plain text */
+    }
+  }
+
+  // 3. Fallback to Plain Text
+  return text;
+}
+
+/**
+ * Simple XML Beautifier using Regex
+ */
+function formatXml(xml) {
+  let formatted = '';
+  let indent = '';
+  const tab = '  '; // 2 spaces
+  
+  // Split by tags
+  xml.split(/>\s*</).forEach((node) => {
+    if (node.match(/^\/\w/)) {
+      // Closing tag
+      indent = indent.substring(tab.length);
+    }
+    
+    formatted += indent + '<' + node + '>\r\n';
+    
+    if (node.match(/^<?\w[^>]*[^\/]$/) && !node.startsWith("?")) {
+      // Opening tag
+      indent += tab;
+    }
+  });
+  
+  return formatted.substring(1, formatted.length - 3);
+}
