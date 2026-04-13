@@ -188,6 +188,7 @@ body {
 .table {
   margin-bottom: 0;
   vertical-align: middle;
+  
 }
 
 .table thead th {
@@ -353,6 +354,12 @@ body {
   width: 220px;
 }
 
+.fixed-width {
+  width: 100%;
+  max-width: 520px; /* match your date range width */
+}
+
+
 .dataTables_wrapper .dataTables_info,
 .dataTables_wrapper .dataTables_length,
 .dataTables_wrapper .dataTables_filter,
@@ -410,6 +417,7 @@ body {
 #logsTable {
   table-layout: fixed;
   min-width: 1500px;
+  
 }
 
 /* Base cells */
@@ -417,6 +425,7 @@ body {
 #logsTable td {
   overflow: hidden;
   vertical-align: middle;
+  text-align: center;
   padding: 0.85rem 0.9rem;
 }
 
@@ -445,7 +454,7 @@ body {
 }
 
 /* 4. Transaction ID */
-#logsTable th:nth-child(4),
+/* #logsTable th:nth-child(4), */
 #logsTable td:nth-child(4) {
   width: 260px;
   min-width: 260px;
@@ -487,7 +496,7 @@ body {
 }
 
 /* 8. Logged Message */
-#logsTable th:nth-child(8),
+/* #logsTable th:nth-child(8), */
 #logsTable td:nth-child(8) {
   width: 420px;
   min-width: 420px;

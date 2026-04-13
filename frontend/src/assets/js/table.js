@@ -18,7 +18,7 @@ function formatLoggingStage(stage) {
 function clickableTruncate(text) {
   if (!text) return '<span class="text-muted">-</span>';
   const escaped = escapeHtml(text);
-  return `<div class="truncate-cell" title="Click to expand">${escaped}</div>`;
+  return `<div class="truncate-cell" title="Click to view full message">${escaped}</div>`;
 }
 
 function renderRows(data) {
