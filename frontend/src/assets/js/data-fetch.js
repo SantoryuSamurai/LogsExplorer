@@ -31,8 +31,15 @@ function hasAppliedFilters(filters = {}) {
     (filters.applicationCode || "").trim() ||
     (filters.interfaceCode || "").trim() ||
     (filters.fromDateTime || "").trim() ||
-    (filters.toDateTime || "").trim()
+    (filters.toDateTime || "").trim() ||
+    (filters.searchValue || "").trim()
   );
+}
+
+function normalizeDateTime(value) {
+  if (!value) return "";
+  // convert: 2026-04-14T10:30 → 2026-04-14T10:30:00
+  return value.length === 16 ? `${value}:00` : value;
 }
 
 function buildLogsUrl(filters = {}, page = 1, size = 10) {
@@ -41,14 +48,22 @@ function buildLogsUrl(filters = {}, page = 1, size = 10) {
   if (filters.applicationCode) {
     params.set("applicationCode", filters.applicationCode.trim());
   }
+
   if (filters.interfaceCode) {
     params.set("interfaceCode", filters.interfaceCode.trim());
   }
+
   if (filters.fromDateTime) {
-    params.set("fromDateTime", filters.fromDateTime);
+    params.set("fromDateTime", normalizeDateTime(filters.fromDateTime));
   }
+
   if (filters.toDateTime) {
-    params.set("toDateTime", filters.toDateTime);
+    params.set("toDateTime", normalizeDateTime(filters.toDateTime));
+  }
+
+  if (filters.searchBy && filters.searchValue) {
+    params.set("searchBy", filters.searchBy);
+    params.set("searchValue", filters.searchValue.trim());
   }
 
   params.set("page", page);
@@ -75,21 +90,12 @@ async function fetchLogs(filters = {}, page = 1, size = 10) {
   try {
     const response = await fetch(url);
     const rawText = await response.text();
-    console.log("Logs API status:", response.status);
 
     if (!response.ok) {
       throw new Error(`Failed to fetch logs (${response.status})`);
     }
 
-    let parsed;
-    try {
-      parsed = rawText ? JSON.parse(rawText) : {};
-    } catch (parseError) {
-      console.error("Failed to parse logs response JSON:", parseError);
-      parsed = {};
-    }
-
-    return parsed;
+    return rawText ? JSON.parse(rawText) : {};
   } catch (error) {
     console.error("Error fetching logs:", error);
     return {

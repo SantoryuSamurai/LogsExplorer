@@ -2,12 +2,14 @@ package com.example.logviewer.controller;
 
 import com.example.logviewer.model.LogRecord;
 import com.example.logviewer.model.PagedResponse;
+import com.example.logviewer.model.SearchBy;
 import com.example.logviewer.service.LogService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/logs")
@@ -36,16 +38,27 @@ public class LogController {
     }
 
     @GetMapping
-    public PagedResponse<LogRecord> getLogs(
+    public CompletableFuture<PagedResponse<LogRecord>> getLogs(
+            @RequestParam(required = false) SearchBy searchBy,
+            @RequestParam(required = false) String searchValue,
             @RequestParam(required = false) String applicationCode,
             @RequestParam(required = false) String interfaceCode,
             @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fromDateTime,
+            @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime fromDateTime,
             @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime toDateTime,
+            @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime toDateTime,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        return logService.searchLogs(applicationCode, interfaceCode, fromDateTime, toDateTime, page, size);
+        return logService.searchLogsAsync(
+                searchBy,
+                searchValue,
+                applicationCode,
+                interfaceCode,
+                fromDateTime,
+                toDateTime,
+                page,
+                size
+        );
     }
 }

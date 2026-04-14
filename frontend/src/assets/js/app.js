@@ -2,7 +2,9 @@ let appliedFilters = {
   applicationCode: "",
   interfaceCode: "",
   fromDateTime: "",
-  toDateTime: ""
+  toDateTime: "",
+  searchBy: "",
+  searchValue: ""
 };
 
 let currentPage = 1;
@@ -12,11 +14,25 @@ let hasSubmittedFilters = false;
 let appSelect, ifaceSelect;
 
 function getFilterValues() {
+  const searchType = document.getElementById("searchType")?.value || "transactionId";
+  const searchKeyword = document.getElementById("searchKeyword")?.value?.trim() || "";
+
+  let searchBy = "";
+  if (searchKeyword) {
+    if (searchType === "transactionId") {
+      searchBy = "TRANSACTION_ID";
+    } else if (searchType === "loggedMessage") {
+      searchBy = "LOGGED_MESSAGE";
+    }
+  }
+
   return {
     applicationCode: (appSelect?.getValue?.() || "").trim(),
     interfaceCode: (ifaceSelect?.getValue?.() || "").trim(),
     fromDateTime: document.getElementById("dateFrom")?.value || "",
-    toDateTime: document.getElementById("dateTo")?.value || ""
+    toDateTime: document.getElementById("dateTo")?.value || "",
+    searchBy,
+    searchValue: searchKeyword
   };
 }
 
@@ -25,8 +41,25 @@ function hasRequiredFilters(filters) {
     (filters.applicationCode || "").trim() ||
     (filters.interfaceCode || "").trim() ||
     (filters.fromDateTime || "").trim() ||
-    (filters.toDateTime || "").trim()
+    (filters.toDateTime || "").trim() ||
+    (filters.searchValue || "").trim()
   );
+}
+
+function validateSearchFilters(filters) {
+  if (filters.searchBy === "LOGGED_MESSAGE") {
+    if (!filters.applicationCode) {
+      alert("Application Code is required for Logged Message search.");
+      return false;
+    }
+
+    if (!filters.fromDateTime || !filters.toDateTime) {
+      alert("Both From Date and To Date are required for Logged Message search.");
+      return false;
+    }
+  }
+
+  return true;
 }
 
 function updateSearchableSelect(instance, items, preserveValue = "", defaultLabel = "All") {
@@ -70,11 +103,13 @@ function clearFilters() {
   const dateTo = document.getElementById("dateTo");
   const recentRange = document.getElementById("recentRange");
   const globalSearch = document.getElementById("globalSearch");
+  const searchType = document.getElementById("searchType");
 
   if (dateFrom) dateFrom.value = "";
   if (dateTo) dateTo.value = "";
   if (recentRange) recentRange.value = "";
   if (globalSearch) globalSearch.value = "";
+  if (searchType) searchType.value = "transactionId";
 }
 
 function applyRecentRange() {
@@ -132,13 +167,24 @@ function resetTableState() {
   renderPager(1, 0, goToPage);
 }
 
+function normalizeDateTime(value) {
+  if (!value) return "";
+  return value.length === 16 ? `${value}:00` : value;
+}
+
 async function renderCurrentPage() {
   if (!hasSubmittedFilters || !hasRequiredFilters(appliedFilters)) {
     resetTableState();
     return;
   }
 
-  const result = await fetchLogs(appliedFilters, currentPage, pageSize);
+  const requestFilters = {
+    ...appliedFilters,
+    fromDateTime: normalizeDateTime(appliedFilters.fromDateTime),
+    toDateTime: normalizeDateTime(appliedFilters.toDateTime)
+  };
+
+  const result = await fetchLogs(requestFilters, currentPage, pageSize);
 
   const content = Array.isArray(result?.content) ? result.content : [];
   const totalElements = Number(result?.totalElements || 0);
@@ -205,9 +251,15 @@ document.addEventListener("DOMContentLoaded", async () => {
         applicationCode: "",
         interfaceCode: "",
         fromDateTime: "",
-        toDateTime: ""
+        toDateTime: "",
+        searchBy: "",
+        searchValue: ""
       };
       resetTableState();
+      return;
+    }
+
+    if (!validateSearchFilters(filters)) {
       return;
     }
 
@@ -223,7 +275,9 @@ document.addEventListener("DOMContentLoaded", async () => {
       applicationCode: "",
       interfaceCode: "",
       fromDateTime: "",
-      toDateTime: ""
+      toDateTime: "",
+      searchBy: "",
+      searchValue: ""
     };
     hasSubmittedFilters = false;
     await loadInterfaces();
