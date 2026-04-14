@@ -11,10 +11,46 @@ let currentPage = 1;
 let pageSize = 10;
 let hasSubmittedFilters = false;
 
-let appSelect, ifaceSelect;
+let appSelect, ifaceSelect, searchTypeSelect;
+
+function getSearchTypeValue() {
+  return searchTypeSelect?.getValue?.() || "transactionId";
+}
+
+function setSearchTypeValue(value) {
+  if (searchTypeSelect) {
+    searchTypeSelect.setValue(value, true);
+    return;
+  }
+
+  const fallback = document.getElementById("searchType");
+  if (fallback) fallback.value = value;
+}
+
+function styleSearchTypeSelect(instance) {
+  if (!instance) return;
+
+  const wrapper = instance.wrapper;
+  if (wrapper) {
+    wrapper.style.width = "180px";
+    wrapper.style.minWidth = "180px";
+    wrapper.style.flex = "0 0 180px";
+  }
+
+  const control = wrapper?.querySelector?.(".ts-control");
+  if (control) {
+    control.style.borderTopRightRadius = "0";
+    control.style.borderBottomRightRadius = "0";
+  }
+}
+
+function normalizeDateTime(value) {
+  if (!value) return "";
+  return value.length === 16 ? `${value}:00` : value;
+}
 
 function getFilterValues() {
-  const searchType = document.getElementById("searchType")?.value || "transactionId";
+  const searchType = getSearchTypeValue();
   const searchKeyword = document.getElementById("searchKeyword")?.value?.trim() || "";
 
   let searchBy = "";
@@ -98,18 +134,19 @@ function clearFilters() {
   document.getElementById("filterForm")?.reset();
   appSelect?.setValue("", true);
   ifaceSelect?.setValue("", true);
+  setSearchTypeValue("transactionId");
 
   const dateFrom = document.getElementById("dateFrom");
   const dateTo = document.getElementById("dateTo");
   const recentRange = document.getElementById("recentRange");
   const globalSearch = document.getElementById("globalSearch");
-  const searchType = document.getElementById("searchType");
+  const searchKeyword = document.getElementById("searchKeyword");
 
   if (dateFrom) dateFrom.value = "";
   if (dateTo) dateTo.value = "";
   if (recentRange) recentRange.value = "";
   if (globalSearch) globalSearch.value = "";
-  if (searchType) searchType.value = "transactionId";
+  if (searchKeyword) searchKeyword.value = "";
 }
 
 function applyRecentRange() {
@@ -226,6 +263,16 @@ document.addEventListener("DOMContentLoaded", async () => {
     placeholder: "All Interfaces",
     allowEmptyOption: true
   });
+
+  searchTypeSelect = new TomSelect("#searchType", {
+    create: false,
+    allowEmptyOption: false,
+    controlInput: null
+  });
+
+  styleSearchTypeSelect(searchTypeSelect);
+
+  window.addEventListener("resize", () => styleSearchTypeSelect(searchTypeSelect));
 
   await Promise.all([loadApplications(), loadInterfaces()]);
 
