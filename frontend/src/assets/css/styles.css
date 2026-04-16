@@ -576,3 +576,171 @@ body {
     width: 100%;
   }
 }
+
+/* Base styling for the pill badge */
+.badge-pill-custom {
+  display: inline-block;
+  padding: 4px 16px;
+  border-radius: 50px;
+  font-weight: 700;
+  font-size: 11px;
+  text-align: center;
+  min-width: 85px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+}
+
+/* Success style: Light green background with Dark green text */
+.badge-pill-success {
+  background-color: #d1e7dd; 
+  border: 1px solid #a3cfbb;
+  color: #0f5132 !important; /* Deep Green Font */
+}
+
+/* Danger style: Light red background with Dark red text */
+.badge-pill-danger {
+  background-color: #f8d7da;
+  border: 1px solid #f1aeb5;
+  color: #842029 !important; /* Deep Red Font */
+}
+
+.stat-pill {
+  display: flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 50px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap; /* Prevents wrapping to a second line */
+}
+
+/* Tonal Success Style */
+.success-stat {
+  background-color: #d1e7dd;
+  color: #0f5132;
+  border: 1px solid #a3cfbb;
+}
+
+/* Tonal Error Style */
+.error-stat {
+  background-color: #f8d7da;
+  color: #842029;
+  border: 1px solid #f1aeb5;
+}
+
+#summaryDisplay div{
+  font-size: 14px;
+}
+
+
+#summaryDisplay span {
+  margin-left: 5px;
+  font-weight: 800; /* Makes the number stand out */
+
+}
+
+
+
+/* Container to force single line */
+.search-action-container {
+  background: #ffffff;
+  /* padding: 10px; */
+  border-radius: 8px;
+  /* border: 1px solid var(--border); */
+}
+
+.search-group {
+  max-width: 600px; /* Adjust based on your preference */
+}
+
+/* Matching the "Beautiful" Pill look from before */
+.stat-pill {
+  display: flex;
+  align-items: center;
+  padding: 6px 14px;
+  border-radius: 50px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.success-stat { background-color: #d1e7dd; color: #0f5132; border: 1px solid #a3cfbb; }
+.error-stat { background-color: #f8d7da; color: #842029; border: 1px solid #f1aeb5; }
+.unique-stat { background-color: #f8f6d7; color: #7a8420; border: 1px solid #f0f1ae; }
+
+/* Ensure the input group looks seamless */
+.search-group .form-select {
+  border-top-right-radius: 0;
+  border-bottom-right-radius: 0;
+  border-right: none;
+}
+
+.search-group .form-control {
+  border-top-left-radius: 0;
+  border-bottom-left-radius: 0;
+}
+
+.stat-pill {
+  cursor: pointer;
+  transition: transform 0.1s ease, filter 0.2s ease;
+  user-select: none;
+}
+
+.stat-pill:hover {
+  filter: brightness(0.95);
+  transform: translateY(-1px);
+}
+
+.stat-pill:active {
+  transform: translateY(0);
+}
+
+.unique-stat{
+  display: flex;
+  align-items: center;
+  padding: 5px 12px;
+  border-radius: 50px;
+  font-size: 13px;
+  font-weight: 600;
+  white-space: nowrap; 
+}
+
+/* HTML: <div class="loader"></div> */
+/* Container for the table and loader */
+.table-wrap {
+  position: relative;
+  min-height: 300px;
+}
+
+/* The background overlay that appears during loading */
+.table-loader-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background: rgba(255, 255, 255, 0.7); /* Translucent background */
+  backdrop-filter: blur(1px);          /* Optional soft blur */
+  display: none;                        /* Controlled by JS (flex when visible) */
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+  border-radius: 8px;
+}
+
+/* YOUR CUSTOM LOADER */
+.loader {
+  width: 50px;
+  aspect-ratio: 1;
+  border-radius: 50%;
+  background: 
+    radial-gradient(farthest-side, #4f7cff 94%, #0000) top/8px 8px no-repeat,
+    conic-gradient(#0000 30%, #4f7cff);
+  -webkit-mask: radial-gradient(farthest-side, #0000 calc(100% - 8px), #000 0);
+  animation: l13 1s infinite linear;
+}
+
+@keyframes l13 { 
+  100% { transform: rotate(1turn); }
+}

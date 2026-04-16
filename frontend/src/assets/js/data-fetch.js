@@ -61,6 +61,10 @@ function buildLogsUrl(filters = {}, page = 1, size = 10) {
     params.set("toDateTime", normalizeDateTime(filters.toDateTime));
   }
 
+  if (filters.caseType) {
+    params.set("caseType", filters.caseType); // 'success' or 'error'
+  }
+
   if (filters.searchBy && filters.searchValue) {
     params.set("searchBy", filters.searchBy);
     params.set("searchValue", filters.searchValue.trim());
@@ -73,16 +77,16 @@ function buildLogsUrl(filters = {}, page = 1, size = 10) {
 }
 
 async function fetchLogs(filters = {}, page = 1, size = 10) {
-  if (!hasAppliedFilters(filters)) {
-    return {
-      content: [],
-      totalElements: 0,
-      totalPages: 0,
-      number: 0,
-      size,
-      skipped: true
-    };
-  }
+  // if (!hasAppliedFilters(filters)) {
+  //   return {
+  //     content: [],
+  //     totalElements: 0,
+  //     totalPages: 0,
+  //     number: 0,
+  //     size,
+  //     skipped: true
+  //   };
+  // }
 
   const url = buildLogsUrl(filters, page, size);
   console.log("Logs API URL:", url);

@@ -36,7 +36,7 @@
           <div class="panel-title">Filters</div>
 
           <form id="filterForm" autocomplete="off">
-            <div class="row g-3 align-items-end">
+            <div class="row g-2 align-items-end">
               <div class="col-12 col-lg-3">
                 <label class="section-label" for="applicationName">Application Code</label>
                 <select id="applicationName" class="form-select"></select>
@@ -66,8 +66,8 @@
               </div>
             </div>
 
-            <div class="row mt-3 g-3 align-items-end">
-              <div class="col-12 col-lg-9">
+            <div class="row mt-3 g-1 align-items-end">
+              <!-- <div class="col-12 col-lg-9">
                 <label class="section-label">Search</label>
                 <div class="input-group">
                   <select id="searchType" class="form-select border-end-0" style="max-width: 180px; border-top-right-radius: 0; border-bottom-right-radius: 0;">
@@ -76,17 +76,72 @@
                   </select>
                   <input id="searchKeyword" type="text" class="form-control" placeholder="Enter data..." style="border-top-left-radius: 0; border-bottom-left-radius: 0;">
                 </div>
+              </div> -->
+
+             <!-- <div class="col-auto">
+            <div class="d-flex align-items-center gap-2">
+              
+              <div id="summaryDisplay" class="d-flex gap-2 me-2">
+                <div class="stat-pill success-stat">
+                  Success: <span id="successCount">0</span>
+                </div>
+                <div class="stat-pill error-stat">
+                  Errors: <span id="errorCount">0</span>
+                </div>
               </div>
 
-              <div class="col-12 col-lg-3 d-flex justify-content-lg-end gap-2">
-                <button type="button" id="submitBtn" class="btn btn-primary w-100">Submit</button>
-                <button type="button" id="clearBtn" class="btn btn-outline-secondary w-100">Clear</button>
-              </div>
+              <button id="submitBtn" type="submit" class="btn btn-primary px-4">
+                <i class="bi bi-search me-2"></i>Submit
+              </button>
+              <button id="clearBtn" type="button" class="btn btn-outline-secondary">
+                <i class="bi bi-eraser me-2"></i>Clear
+              </button>
+              
+            </div>
+</div> -->
+<label class="section-label">Search</label>
+<div class="search-action-container d-flex align-items-center justify-content-between gap-2  flex-nowrap">
+  <div class="d-flex align-items-center flex-grow-1">
+    <div class="input-group search-group">
+        <select id="searchType" class="form-select border-end-0" style="max-width: 180px; border-top-right-radius: 0; border-bottom-right-radius: 0;">
+                    <option value="transactionId">Transaction ID</option>
+                    <option value="loggedMessage">Logged Message</option>
+                  </select>
+      <input type="text" id="searchKeyword" class="form-control" placeholder="Search..." />
+    </div>
+  </div>
+
+  <div class="d-flex align-items-center gap-4">
+    <div id="summaryDisplay" class="d-flex align-items-center gap-4">
+      <div class="stat-pill success-stat">
+        Success: <span id="successCount">0</span>
+      </div>
+      <div class="stat-pill error-stat">
+        Errors: <span id="errorCount">0</span>
+      </div>
+      <div class="unique-stat">
+        Unique: <span id="uniqueCount">0</span>
+      </div>
+    </div>
+
+    <div class="btn-group-actions d-flex gap-3">
+      <button id="submitBtn" type="submit" class="btn btn-primary px-3">
+        <i class="bi bi-search me-2"></i>Submit
+      </button>
+      <button id="clearBtn" type="button" class="btn btn-outline-secondary px-3">
+        <i class="bi bi-eraser me-2"></i>Clear
+      </button>
+    </div>
+  </div>
+</div>
             </div>
           </form>
         </section>
 
         <section class="table-wrap mt-3">
+          <div id="tableLoader" class="table-loader-overlay">
+            <div class="loader"></div>
+          </div>
           <div class="table-responsive">
             <table id="logsTable" class="table table-hover align-middle mb-0 w-100">
               <thead></thead>

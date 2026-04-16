@@ -4,7 +4,8 @@ let appliedFilters = {
   fromDateTime: "",
   toDateTime: "",
   searchBy: "",
-  searchValue: ""
+  searchValue: "",
+  caseType: ""
 };
 
 let currentPage = 1;
@@ -12,6 +13,14 @@ let pageSize = 10;
 let hasSubmittedFilters = false;
 
 let appSelect, ifaceSelect, searchTypeSelect;
+
+function toggleTableLoader(show) {
+  const loader = document.getElementById("tableLoader");
+  if (loader) {
+    // We use 'flex' instead of 'block' to keep the loader icon centered
+    loader.style.display = show ? "flex" : "none";
+  }
+}
 
 function getSearchTypeValue() {
   return searchTypeSelect?.getValue?.() || "transactionId";
@@ -209,38 +218,54 @@ function normalizeDateTime(value) {
   return value.length === 16 ? `${value}:00` : value;
 }
 
+/**
+ * Updates the Success/Error counts next to the Submit button
+ */
+function updateSummaryUI(summary) {
+  const successEl = document.getElementById("successCount");
+  const errorEl = document.getElementById("errorCount");
+  const uniqueEl = document.getElementById("uniqueCount");
+  console.log(summary);
+  if (successEl && errorEl && uniqueEl) {
+    successEl.textContent = summary?.successCount ?? 0;
+    errorEl.textContent = summary?.errorCount ?? 0;
+    uniqueEl.textContent = summary?.uniqueTransactionCount ?? 0;
+  }
+}
+
 async function renderCurrentPage() {
-  if (!hasSubmittedFilters || !hasRequiredFilters(appliedFilters)) {
-    resetTableState();
-    return;
+  toggleTableLoader(true);
+  try{
+    const response = await fetchLogs(appliedFilters, currentPage, pageSize);
+    
+    if (response.skipped) {
+      refreshTable([]);
+      updateEntriesText(0, 0, 0);
+      renderPager(0, 0, () => {});
+      return;
+    }
+    
+    // Use the nested 'page' property from your new response structure
+    const logsPage = response.page || { content: [], totalElements: 0, totalPages: 0 };
+    const summary = response.summary || { successCount: 0, errorCount: 0 ,uniqueCount:0};
+    
+    updateSummaryUI(summary);
+    refreshTable(logsPage.content);
+    
+    const start = (currentPage - 1) * pageSize + 1;
+    const end = Math.min(currentPage * pageSize, logsPage.totalElements);
+    updateEntriesText(start, end, logsPage.totalElements);
+    
+    renderPager(currentPage, logsPage.totalPages, async page => {
+      currentPage = page;
+      await renderCurrentPage();
+    });
+  }catch(e){
+    alert(e);
+    console.error(e);
+  }finally{
+    toggleTableLoader(false);
   }
-
-  const requestFilters = {
-    ...appliedFilters,
-    fromDateTime: normalizeDateTime(appliedFilters.fromDateTime),
-    toDateTime: normalizeDateTime(appliedFilters.toDateTime)
-  };
-
-  const result = await fetchLogs(requestFilters, currentPage, pageSize);
-
-  const content = Array.isArray(result?.content) ? result.content : [];
-  const totalElements = Number(result?.totalElements || 0);
-  const totalPages = Number(result?.totalPages || 0);
-  const backendPageNumber = Number(result?.number || 0);
-
-  currentPage = backendPageNumber + 1;
-
-  refreshTable(content);
-
-  if (content.length > 0) {
-    const startIndex = (currentPage - 1) * pageSize + 1;
-    const endIndex = Math.min(startIndex + content.length - 1, totalElements);
-    updateEntriesText(startIndex, endIndex, totalElements);
-  } else {
-    updateEntriesText(0, 0, 0);
-  }
-
-  renderPager(currentPage, totalPages, goToPage);
 }
 
 async function goToPage(page) {
@@ -291,26 +316,26 @@ document.addEventListener("DOMContentLoaded", async () => {
     const filters = getFilterValues();
     console.log("Submit filters:", filters);
 
-    if (!hasRequiredFilters(filters)) {
-      alert("Please select a filter before trying.");
-      hasSubmittedFilters = false;
-      appliedFilters = {
-        applicationCode: "",
-        interfaceCode: "",
-        fromDateTime: "",
-        toDateTime: "",
-        searchBy: "",
-        searchValue: ""
-      };
-      resetTableState();
-      return;
-    }
+    // if (!hasRequiredFilters(filters)) {
+    //   alert("Please select a filter before trying.");
+    //   hasSubmittedFilters = false;
+    //   appliedFilters = {
+    //     applicationCode: "",
+    //     interfaceCode: "",
+    //     fromDateTime: "",
+    //     toDateTime: "",
+    //     searchBy: "",
+    //     searchValue: ""
+    //   };
+    //   resetTableState();
+    //   return;
+    // }
 
     if (!validateSearchFilters(filters)) {
       return;
     }
 
-    appliedFilters = { ...filters };
+    appliedFilters = { ...filters,caseType: "" };
     hasSubmittedFilters = true;
     currentPage = 1;
     await renderCurrentPage();
@@ -324,10 +349,16 @@ document.addEventListener("DOMContentLoaded", async () => {
       fromDateTime: "",
       toDateTime: "",
       searchBy: "",
-      searchValue: ""
+      searchValue: "",
+      caseType: ""
     };
     hasSubmittedFilters = false;
     await loadInterfaces();
+    document.getElementById("successCount").textContent = "0";
+  document.getElementById("errorCount").textContent = "0";
+  document.getElementById("uniqueCount").textContent = "0";
+  
+  resetTableState();
     resetTableState();
   });
 
@@ -342,4 +373,29 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("dateTo").addEventListener("change", () => {
     document.getElementById("recentRange").value = "";
   });
+  const successPill = document.getElementById("successCount")?.closest('.stat-pill');
+  const errorPill = document.getElementById("errorCount")?.closest('.stat-pill');
+
+  if (successPill) {
+    successPill.style.cursor = "pointer";
+    successPill.addEventListener("click", () => triggerCaseFilter("success"));
+  }
+
+  if (errorPill) {
+    errorPill.style.cursor = "pointer";
+    errorPill.addEventListener("click", () => triggerCaseFilter("error"));
+  }
 });
+
+async function triggerCaseFilter(type) {
+  const currentFilters = getFilterValues();
+  
+  // Update state with the specific caseType
+  appliedFilters = { 
+    ...currentFilters, 
+    caseType: type 
+  };
+  
+  currentPage = 1;
+  await renderCurrentPage();
+}

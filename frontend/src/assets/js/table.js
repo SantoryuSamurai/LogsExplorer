@@ -12,6 +12,7 @@ function formatLoggingStage(stage) {
   if (typeof stage === "object") {
     return escapeHtml(stage.text ?? JSON.stringify(stage));
   }
+  // if(stage === "ERROR") return escapeHtml()
   return escapeHtml(stage);
 }
 
@@ -22,16 +23,25 @@ function clickableTruncate(text) {
 }
 
 function renderRows(data) {
-  return data.map(item => [
-    `<span class="seq-id">${escapeHtml(item.sequenceId)}</span>`,
-    `<span class="interface-code-cell">${escapeHtml(item.interfaceCode)}</span>`,
-    `<span class="application-code-cell">${escapeHtml(item.applicationCode)}</span>`,
-    `<div class="txn-id-wrap">${escapeHtml(item.transactionId)}</div>`,
-    `<span class="logging-stage-cell">${formatLoggingStage(item.loggingStage)}</span>`,
-    `<span class="target-service-cell">${escapeHtml(item.targetService)}</span>`,
-    `<span class="log-time-cell">${escapeHtml(item.logTime)}</span>`,
-    `<div class="log-msg-cell">${clickableTruncate(item.loggedMessage)}</div>`
-  ]);
+  return data.map(item => {
+    const stage = formatLoggingStage(item.loggingStage);
+    const isError = stage.trim().toUpperCase() === "ERROR";
+    const badgeClass = isError ? "badge-pill-danger" : "badge-pill-success";
+    const badgeRow = isError ? "row-error-highlight" : "badge-pill-success";
+
+    return [
+      `<span class="seq-id">${escapeHtml(item.sequenceId)}</span>`,
+      `<span class="interface-code-cell">${escapeHtml(item.interfaceCode)}</span>`,
+      `<span class="application-code-cell">${escapeHtml(item.applicationCode)}</span>`,
+      `<div class="txn-id-wrap">${escapeHtml(item.transactionId)}</div>`,
+      `<div class="logging-stage-cell">
+        <span class="badge-pill-custom ${badgeClass} ${badgeRow}">${stage}</span>
+      </div>`,
+      `<span class="target-service-cell">${escapeHtml(item.targetService)}</span>`,
+      `<span class="log-time-cell">${escapeHtml(item.logTime)}</span>`,
+      `<div class="log-msg-cell">${clickableTruncate(item.loggedMessage)}</div>`
+    ];
+  });
 }
 
 function initLogsTable(initialData) {
