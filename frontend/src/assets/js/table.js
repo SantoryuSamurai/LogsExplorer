@@ -142,11 +142,11 @@ function initLogsTable(data, mode = "EXPLORER") {
     ];
     tableData = renderStatsRows(data);
     columnDefs = [
-    {
-      targets: "_all",
-      className: "dt-center"
-    }
-  ];
+  {
+    targets: "_all",
+    className: "dt-head-center dt-body-center"
+  }
+];
   }
 
   logsTable = new DataTable("#logsTable", {
