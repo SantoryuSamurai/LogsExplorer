@@ -8,6 +8,7 @@ let appliedFilters = {
   caseType: ""
 };
 
+
 let currentPage = 1;
 let pageSize = 10;
 let hasSubmittedFilters = false;
@@ -25,6 +26,9 @@ function syncTableViewClass(mode) {
 
 document.querySelectorAll("#logTabs button").forEach((button) => {
   button.addEventListener("shown.bs.tab", async (e) => {
+    // document.getElementById("summaryDisplay").style.display = "none";
+    setSummaryVisible(false);
+
     activeTab = e.target.getAttribute("data-type");
     currentPage = 1;
 
@@ -263,6 +267,13 @@ function updateSummaryUI(summary) {
   }
 }
 
+function setSummaryVisible(visible) {
+  const el = document.getElementById("summaryDisplay");
+  if (!el) return;
+
+  el.classList.toggle("hidden-summary", !visible);
+}
+
 async function renderCurrentPage() {
   toggleTableLoader(true);
 
@@ -307,6 +318,21 @@ async function renderCurrentPage() {
 
     initLogsTable(tableData, activeTab);
 
+    const showSummary = activeTab === "EXPLORER" || activeTab === "DURATION";
+
+          if (showSummary) {
+            setSummaryVisible(true);
+            updateSummaryUI(
+              response?.summary || {
+                successCount: 0,
+                errorCount: 0,
+                uniqueTransactionCount: 0
+              }
+            );
+          } else {
+            setSummaryVisible(false);
+          }
+
     const start = totalElements === 0 ? 0 : (currentPage - 1) * pageSize + 1;
     const end = Math.min(currentPage * pageSize, totalElements);
     updateEntriesText(start, end, totalElements);
@@ -335,6 +361,7 @@ async function goToPage(page) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
+  setSummaryVisible(false); 
   appSelect = new TomSelect("#applicationName", {
     create: false,
     placeholder: "All Applications",
@@ -386,6 +413,8 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   document.getElementById("clearBtn").addEventListener("click", async () => {
     clearFilters();
+
+    // document.getElementById("summaryDisplay").style.display = "none";
     appliedFilters = {
       applicationCode: "",
       interfaceCode: "",
@@ -402,6 +431,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("successCount").textContent = "0";
     document.getElementById("errorCount").textContent = "0";
     document.getElementById("uniqueCount").textContent = "0";
+
+    setSummaryVisible(false);
 
     resetTableState();
   });
