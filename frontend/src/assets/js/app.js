@@ -14,6 +14,52 @@ let hasSubmittedFilters = false;
 
 let appSelect, ifaceSelect, searchTypeSelect;
 
+let activeTab = "EXPLORER"; // Global state
+
+// Tab Switch Listener
+// document.querySelectorAll('#logTabs button').forEach(button => {
+//   button.addEventListener('shown.bs.tab', async (e) => {
+//     activeTab = e.target.getAttribute('data-type');
+//     currentPage = 1;
+//     await renderCurrentPage();
+//   });
+// });
+
+document.querySelectorAll('#logTabs button').forEach((button) => {
+  button.addEventListener('shown.bs.tab',async (e) => {
+    // 1. Update global state
+    activeTab = e.target.getAttribute('data-type');
+    
+    // 2. Reset pagination to page 1
+    currentPage = 1;
+    
+    // 3. Clear the table and reset pager so it doesn't show old data from previous tab
+    // This provides a clean slate until "Submit" is clicked
+    initLogsTable([], activeTab); 
+    updateEntriesText(0, 0, 0);
+    renderPager(1, 0, goToPage);
+    updateSummaryUI( { successCount: 0, errorCount: 0, uniqueTransactionCount: 0 });
+    clearFilters();
+    appliedFilters = {
+      applicationCode: "",
+      interfaceCode: "",
+      fromDateTime: "",
+      toDateTime: "",
+      searchBy: "",
+      searchValue: "",
+      caseType: ""
+    };
+    hasSubmittedFilters = false;
+    await loadInterfaces();
+    
+    // 4. (Optional) Reset the hasSubmittedFilters flag if you want 
+    // to force a fresh click for every tab switch
+    // hasSubmittedFilters = false; 
+    
+    console.log(`Tab switched to: ${activeTab}. Waiting for Submit click...`);
+  });
+});
+
 function toggleTableLoader(show) {
   const loader = document.getElementById("tableLoader");
   if (loader) {
@@ -233,37 +279,272 @@ function updateSummaryUI(summary) {
   }
 }
 
+// async function renderCurrentPage() {
+//   toggleTableLoader(true);
+//   try{
+//     const response = await fetchLogs(appliedFilters, currentPage, pageSize, activeTab);
+    
+//     // Duration API returns content directly at root, Explorer uses response.page.content
+//     const data = activeTab === "EXPLORER" ? response.page.content : response.content;
+//     const totalElements = activeTab === "EXPLORER" ? response.page.totalElements : response.totalElements;
+
+//     initLogsTable(data, activeTab);
+    
+//     // Update summary only for Explorer
+//     if (activeTab === "EXPLORER") {
+//        updateSummaryUI(response.summary);
+//     }
+    
+//     if (response.skipped) {
+//       refreshTable([]);
+//       updateEntriesText(0, 0, 0);
+//       renderPager(0, 0, () => {});
+//       return;
+//     }
+    
+//     // Use the nested 'page' property from your new response structure
+//     const logsPage = response.page || { content: [], totalElements: 0, totalPages: 0 };
+//     const summary = response.summary || { successCount: 0, errorCount: 0 ,uniqueCount:0};
+    
+//     updateSummaryUI(summary);
+//     refreshTable(logsPage.content);
+    
+//     const start = (currentPage - 1) * pageSize + 1;
+//     const end = Math.min(currentPage * pageSize, logsPage.totalElements);
+//     updateEntriesText(start, end, logsPage.totalElements);
+    
+//     renderPager(currentPage, logsPage.totalPages, async page => {
+//       currentPage = page;
+//       await renderCurrentPage();
+//     });
+//   }catch(e){
+//     alert(e);
+//     console.error(e);
+//   }finally{
+//     toggleTableLoader(false);
+//   }
+// }
+
+// async function renderCurrentPage() {
+//   toggleTableLoader(true);
+  
+//   try {
+//     const response = await fetchLogs(appliedFilters, currentPage, pageSize, activeTab);
+
+//     // 1. Handle "Skipped" or empty states early
+//     if (response.skipped || (!response.page && !response.content)) {
+//       initLogsTable([], activeTab); // Initialize empty table
+//       updateEntriesText(0, 0, 0);
+//       renderPager(0, 0, () => {});
+//       if (activeTab === "EXPLORER") updateSummaryUI({ successCount: 0, errorCount: 0, uniqueCount: 0 });
+//       return;
+//     }
+
+//     // 2. Extract Data based on Active Tab
+//     // Explorer uses response.page structure; Duration uses root content structure
+//     const isExplorer = activeTab === "EXPLORER";
+//     const data = isExplorer ? response.page.content : response.content;
+//     const totalElements = isExplorer ? response.page.totalElements : response.totalElements;
+//     const totalPages = isExplorer ? response.page.totalPages : response.totalPages;
+
+//     // 3. Initialize DataTables with specific mode
+//     initLogsTable(data, activeTab);
+
+//     // 4. Update UI Components
+//     if (isExplorer) {
+//       const summary = response.summary || { successCount: 0, errorCount: 0, uniqueCount: 0 };
+//       updateSummaryUI(summary);
+//     }
+
+//     // 5. Update Pagination text (Common for both)
+//     const start = totalElements === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+//     const end = Math.min(currentPage * pageSize, totalElements);
+//     updateEntriesText(start, end, totalElements);
+
+//     // 6. Render Pager (Common for both)
+//     renderPager(currentPage, totalPages, async (page) => {
+//       currentPage = page;
+//       await renderCurrentPage();
+//     });
+
+//   } catch (e) {
+//     console.error("Render Error:", e);
+//     // Optional: show a user-friendly message in the table instead of an alert
+//     document.querySelector("#tableBody").innerHTML = `<tr><td colspan="10" class="text-center text-danger">Failed to load data.</td></tr>`;
+//   } finally {
+//     toggleTableLoader(false);
+//   }
+// }
+
+// async function renderCurrentPage() {
+//   toggleTableLoader(true);
+  
+//   try {
+//     const response = await fetchLogs(appliedFilters, currentPage, pageSize, activeTab);
+
+//     // 1. Handle "Skipped" or empty states
+//     // Adding fallbacks to ensure response objects exist
+//     if (response.skipped || (!response.page && !response.content && !Array.isArray(response))) {
+//       initLogsTable([], activeTab);
+//       updateEntriesText(0, 0, 0);
+//       renderPager(0, 0, () => {});
+//       return;
+//     }
+
+//     const isExplorer = activeTab === "EXPLORER";
+    
+//     // FIX: Add || [] to prevent .map() errors if the API returns null or unexpected structure
+//     const data = isExplorer ? (response.page?.content || []) : (response.content || response || []);
+//     const totalElements = isExplorer ? (response.page?.totalElements || 0) : (response.totalElements || 0);
+//     const totalPages = isExplorer ? (response.page?.totalPages || 0) : (response.totalPages || 0);
+
+//     // 3. Initialize Table
+//     initLogsTable(data, activeTab);
+
+//     // 4. Update Summary
+//     if (isExplorer) {
+//       updateSummaryUI(response.summary || { successCount: 0, errorCount: 0, uniqueTransactionCount: 0 });
+//     }
+
+//     // 5. Update Pagination
+//     const start = totalElements === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+//     const end = Math.min(currentPage * pageSize, totalElements);
+//     updateEntriesText(start, end, totalElements);
+
+//     renderPager(currentPage, totalPages, async (page) => {
+//       currentPage = page;
+//       await renderCurrentPage();
+//     });
+
+//   } catch (e) {
+//     console.error("Render Error:", e);
+//     // FIX: Updated selector to match the ID we added in Step 1
+//     const tbody = document.getElementById("logsTableBody");
+//     if (tbody) {
+//       tbody.innerHTML = `<tr><td colspan="10" class="text-center text-danger">Failed to load data: ${e.message}</td></tr>`;
+//     }
+//   } finally {
+//     toggleTableLoader(false);
+//   }
+// }
+
+// async function renderCurrentPage() {
+//   toggleTableLoader(true);
+  
+//   try {
+//     // 1. Fetch data passing the current activeTab mode
+//     const response = await fetchLogs(appliedFilters, currentPage, pageSize, activeTab);
+
+//     // 2. Handle empty/skipped state
+//     if (!response || response.skipped) {
+//       initLogsTable([], activeTab);
+//       updateEntriesText(0, 0, 0);
+//       renderPager(0, 0, () => {});
+//       return;
+//     }
+
+//     const isExplorer = (activeTab === "EXPLORER");
+//     let tableData = [];
+//     let totalElements = 0;
+//     let totalPages = 0;
+
+//     // 3. Extract data based on response structure
+//     if (isExplorer) {
+//       // Explorer structure: response.page.content
+//       const pageObj = response.page || {};
+//       tableData = pageObj.content || [];
+//       totalElements = pageObj.totalElements || 0;
+//       totalPages = pageObj.totalPages || 0;
+      
+//       // Update counts for Explorer only
+//       updateSummaryUI(response.summary || { successCount: 0, errorCount: 0, uniqueTransactionCount: 0 });
+//     } else {
+//       // Duration structure: response.content (from your JSON snippet)
+//       tableData = response.content || [];
+//       totalElements = response.totalElements || 0;
+//       totalPages = response.totalPages || 0;
+//     }
+
+//     // 4. Render Table
+//     initLogsTable(tableData, activeTab);
+
+//     // 5. Update Pagination
+//     const start = totalElements === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+//     const end = Math.min(currentPage * pageSize, totalElements);
+//     updateEntriesText(start, end, totalElements);
+
+//     renderPager(currentPage, totalPages, async (page) => {
+//       currentPage = page;
+//       await renderCurrentPage();
+//     });
+
+//   } catch (e) {
+//     console.error("Render Error:", e);
+//     const tbody = document.querySelector("#logsTable tbody");
+//     if (tbody) {
+//       tbody.innerHTML = `<tr><td colspan="6" class="text-center text-danger p-4">
+//         <i class="bi bi-exclamation-triangle"></i> Failed to load data: ${e.message}
+//       </td></tr>`;
+//     }
+//   } finally {
+//     toggleTableLoader(false);
+//   }
+// }
+
 async function renderCurrentPage() {
   toggleTableLoader(true);
-  try{
-    const response = await fetchLogs(appliedFilters, currentPage, pageSize);
-    
-    if (response.skipped) {
-      refreshTable([]);
+  
+  try {
+    // Pass activeTab to fetchLogs
+    const response = await fetchLogs(appliedFilters, currentPage, pageSize, activeTab);
+
+    if (!response || response.skipped) {
+      initLogsTable([], activeTab);
       updateEntriesText(0, 0, 0);
       renderPager(0, 0, () => {});
       return;
     }
-    
-    // Use the nested 'page' property from your new response structure
-    const logsPage = response.page || { content: [], totalElements: 0, totalPages: 0 };
-    const summary = response.summary || { successCount: 0, errorCount: 0 ,uniqueCount:0};
-    
-    updateSummaryUI(summary);
-    refreshTable(logsPage.content);
-    
-    const start = (currentPage - 1) * pageSize + 1;
-    const end = Math.min(currentPage * pageSize, logsPage.totalElements);
-    updateEntriesText(start, end, logsPage.totalElements);
-    
-    renderPager(currentPage, logsPage.totalPages, async page => {
+
+    const isExplorer = (activeTab === "EXPLORER");
+    let tableData = [];
+    let totalElements = 0;
+    let totalPages = 0;
+
+    if (isExplorer) {
+      // Structure: response.page.content
+      const pageObj = response.page || {};
+      tableData = pageObj.content || [];
+      totalElements = pageObj.totalElements || 0;
+      totalPages = pageObj.totalPages || 0;
+      updateSummaryUI(response?.summary || { successCount: 0, errorCount: 0, uniqueTransactionCount: 0 });
+    } else {
+      // Duration structure based on your JSON: root content
+      tableData = response.content || [];
+      totalElements = response.totalElements || 0;
+      totalPages = response.totalPages || 0;
+      updateSummaryUI(response?.summary || { successCount: 0, errorCount: 0, uniqueTransactionCount: 0 });
+    }
+
+    // Initialize the DataTable
+    initLogsTable(tableData, activeTab);
+
+    // Update Pagination UI
+    const start = totalElements === 0 ? 0 : (currentPage - 1) * pageSize + 1;
+    const end = Math.min(currentPage * pageSize, totalElements);
+    updateEntriesText(start, end, totalElements);
+
+    renderPager(currentPage, totalPages, async (page) => {
       currentPage = page;
       await renderCurrentPage();
     });
-  }catch(e){
-    alert(e);
-    console.error(e);
-  }finally{
+
+  } catch (e) {
+    console.error("Render Error:", e);
+    const tbody = document.querySelector("#logsTable tbody");
+    if (tbody) {
+      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${e.message}</td></tr>`;
+    }
+  } finally {
     toggleTableLoader(false);
   }
 }
@@ -359,7 +640,6 @@ document.addEventListener("DOMContentLoaded", async () => {
   document.getElementById("uniqueCount").textContent = "0";
   
   resetTableState();
-    resetTableState();
   });
 
   document.getElementById("recentRange").addEventListener("change", () => {

@@ -44,14 +44,68 @@ function renderRows(data) {
   });
 }
 
-function initLogsTable(initialData) {
-  if (logsTable) logsTable.destroy();
+function renderDurationRows(data) {
+  // Ensure data is an array
+  if (!Array.isArray(data)) return [];
 
-  document.querySelector("#logsTable").innerHTML = "<thead></thead><tbody></tbody>";
+  return data.map(item => {
+    // Map status to badge colors (SUCCESS = green, everything else = red)
+    const status = item.status || "UNKNOWN";
+    const isSuccess = status.toUpperCase() === "SUCCESS";
+    const statusClass = isSuccess ? "badge-pill-success" : "badge-pill-danger";
 
-  logsTable = new DataTable("#logsTable", {
-    data: renderRows(initialData),
-    columns: [
+    return [
+      `<span class="interface-code-cell">${escapeHtml(item.interfaceCode)}</span>`,
+      `<span class="txn-id-wrap">${escapeHtml(item.transactionId)}</span>`,
+      `<span class="badge-pill-custom ${statusClass}">${escapeHtml(status)}</span>`,
+      `<span class="log-time-cell">${escapeHtml(item.firstLogTime ? item.firstLogTime.replace('T', ' ') : "-")}</span>`,
+      `<span class="log-time-cell">${escapeHtml(item.lastLogTime ? item.lastLogTime.replace('T', ' ') : "-")}</span>`,
+      `<span class="seq-id">${escapeHtml((item.durationMillis/1000).toLocaleString())}</span>`
+    ];
+  });
+}
+
+// function initLogsTable(initialData) {
+//   if (logsTable) logsTable.destroy();
+
+//   document.querySelector("#logsTable").innerHTML = "<thead></thead><tbody></tbody>";
+
+//   logsTable = new DataTable("#logsTable", {
+//     data: renderRows(initialData),
+//     columns: [
+//       { title: "SEQUENCE_ID" },
+//       { title: "INTERFACE_CODE" },
+//       { title: "APPLICATION_CODE" },
+//       { title: "TRANSACTION_ID" },
+//       { title: "LOGGING_STAGE" },
+//       { title: "TARGET_SERVICE" },
+//       { title: "LOGTIME" },
+//       { title: "LOGGED_MESSAGE" }
+//     ],
+//     paging: false,
+//     searching: false,
+//     info: false,
+//     ordering: false,
+//     responsive: false,
+//     autoWidth: false,
+//     scrollX: false
+//   });
+
+//   return logsTable;
+// }
+
+function initLogsTable(data, mode = "EXPLORER") {
+  if (logsTable) {
+    logsTable.destroy();
+    // Clear the DOM to prevent header conflicts
+    document.querySelector("#logsTable").innerHTML = "<thead></thead><tbody></tbody>";
+  }
+
+  let columns = [];
+  let tableData = [];
+
+  if (mode === "EXPLORER") {
+    columns = [
       { title: "SEQUENCE_ID" },
       { title: "INTERFACE_CODE" },
       { title: "APPLICATION_CODE" },
@@ -60,18 +114,35 @@ function initLogsTable(initialData) {
       { title: "TARGET_SERVICE" },
       { title: "LOGTIME" },
       { title: "LOGGED_MESSAGE" }
-    ],
+    ];
+    tableData = renderRows(data); // Your existing log explorer row mapper
+  } else {
+    columns = [
+      { title: "INTERFACE_CODE" },
+      { title: "TRANSACTION_ID" },
+      { title: "STATUS" },
+      { title: "START_LOGTIME" },
+      { title: "END_LOGTIME" },
+      { title: "DURATION (s)" }
+    ];
+    tableData = renderDurationRows(data);
+  }
+
+  logsTable = new DataTable("#logsTable", {
+    data: tableData,
+    columns: columns,
     paging: false,
     searching: false,
     info: false,
     ordering: false,
     responsive: false,
     autoWidth: false,
-    scrollX: false
+    scrollX: true // Helpful for the duration view
   });
 
   return logsTable;
 }
+
 
 function refreshTable(data) {
   if (!logsTable) return;

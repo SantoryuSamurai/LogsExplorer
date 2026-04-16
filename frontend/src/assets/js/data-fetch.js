@@ -42,9 +42,9 @@ function normalizeDateTime(value) {
   return value.length === 16 ? `${value}:00` : value;
 }
 
-function buildLogsUrl(filters = {}, page = 1, size = 10) {
+function buildLogsUrl(filters = {}, page = 1, size = 10,mode="EXPLORER") {
   const params = new URLSearchParams();
-
+const endpoint = (mode === "DURATION") ? "/durations" : "";
   if (filters.applicationCode) {
     params.set("applicationCode", filters.applicationCode.trim());
   }
@@ -64,19 +64,21 @@ function buildLogsUrl(filters = {}, page = 1, size = 10) {
   if (filters.caseType) {
     params.set("caseType", filters.caseType); // 'success' or 'error'
   }
-
-  if (filters.searchBy && filters.searchValue) {
-    params.set("searchBy", filters.searchBy);
-    params.set("searchValue", filters.searchValue.trim());
+if (mode === "EXPLORER") {
+      if (filters.searchBy && filters.searchValue) {
+          params.set("searchBy", filters.searchBy);
+          params.set("searchValue", filters.searchValue);
+      }
+      if (filters.caseType) params.set("caseType", filters.caseType);
   }
 
   params.set("page", page);
   params.set("size", size);
 
-  return `${API_BASE_URL}?${params.toString()}`;
+  return `${API_BASE_URL}${endpoint}?${params.toString()}`;
 }
 
-async function fetchLogs(filters = {}, page = 1, size = 10) {
+async function fetchLogs(filters = {}, page = 1, size = 10,mode="EXPLORER") {
   // if (!hasAppliedFilters(filters)) {
   //   return {
   //     content: [],
@@ -88,7 +90,7 @@ async function fetchLogs(filters = {}, page = 1, size = 10) {
   //   };
   // }
 
-  const url = buildLogsUrl(filters, page, size);
+  const url = buildLogsUrl(filters, page, size,mode);
   console.log("Logs API URL:", url);
 
   try {
