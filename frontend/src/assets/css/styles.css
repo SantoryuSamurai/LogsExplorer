@@ -178,6 +178,7 @@ body {
 }
 
 .table-wrap {
+  position: relative;/* positionrelative for loader */
   margin-top: 18px;
   background: rgba(255, 255, 255, 0.96);
   border: 1px solid rgba(229, 235, 245, 0.95);
@@ -706,13 +707,6 @@ body {
   white-space: nowrap; 
 }
 
-/* HTML: <div class="loader"></div> */
-/* Container for the table and loader */
-.table-wrap {
-  position: relative;
-  min-height: 300px;
-}
-
 /* The background overlay that appears during loading */
 .table-loader-overlay {
   position: absolute;
@@ -761,10 +755,4 @@ body {
 .nav-tabs .nav-link:hover {
   border-color: transparent;
   color: var(--primary);
-}
-
-/* Ensure the table container top corners are flat when tabs are present */
-.table-wrap {
-  border-top-left-radius: 0;
-  border-top: 1px solid var(--border);
 }

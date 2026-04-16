@@ -129,16 +129,27 @@ function initLogsTable(data, mode = "EXPLORER") {
   }
 
   logsTable = new DataTable("#logsTable", {
-    data: tableData,
-    columns: columns,
-    paging: false,
-    searching: false,
-    info: false,
-    ordering: false,
-    responsive: false,
-    autoWidth: false,
-    scrollX: true // Helpful for the duration view
-  });
+  data: tableData,
+  columns: columns,
+  paging: false,
+  searching: false,
+  info: false,
+  ordering: false,
+  responsive: false,
+  autoWidth: false,
+  scrollX: true,
+
+  columnDefs: [
+    {
+      targets: "_all",
+      className: "dt-center"
+    },
+    {
+      targets: [3, 7], // Transaction ID & Logged Message
+      className: "dt-left"
+    }
+  ]
+});
 
   return logsTable;
 }
