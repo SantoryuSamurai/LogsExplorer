@@ -42,9 +42,17 @@ function normalizeDateTime(value) {
   return value.length === 16 ? `${value}:00` : value;
 }
 
-function buildLogsUrl(filters = {}, page = 1, size = 10,mode="EXPLORER") {
+function buildLogsUrl(filters = {}, page = 1, size = 10, mode = "EXPLORER") {
+  let endpoint = "";
+
+  if (mode === "DURATION") {
+    endpoint = "/durations";
+  } else if (mode === "MINMAX") {
+    endpoint = "/interface-stats";
+  }
+
   const params = new URLSearchParams();
-const endpoint = (mode === "DURATION") ? "/durations" : "";
+
   if (filters.applicationCode) {
     params.set("applicationCode", filters.applicationCode.trim());
   }
@@ -61,15 +69,18 @@ const endpoint = (mode === "DURATION") ? "/durations" : "";
     params.set("toDateTime", normalizeDateTime(filters.toDateTime));
   }
 
-  if (filters.caseType) {
-    params.set("caseType", filters.caseType); // 'success' or 'error'
-  }
-if (mode === "EXPLORER") {
-      if (filters.searchBy && filters.searchValue) {
-          params.set("searchBy", filters.searchBy);
-          params.set("searchValue", filters.searchValue);
-      }
-      if (filters.caseType) params.set("caseType", filters.caseType);
+  // if (filters.caseType) {
+  //   params.set("caseType", filters.caseType); // 'success' or 'error'
+  // }
+  if (mode === "EXPLORER") {
+    if (filters.searchBy && filters.searchValue) {
+      params.set("searchBy", filters.searchBy);
+      params.set("searchValue", filters.searchValue);
+    }
+
+    if (filters.caseType) {
+      params.set("caseType", filters.caseType);
+    }
   }
 
   params.set("page", page);
@@ -78,19 +89,8 @@ if (mode === "EXPLORER") {
   return `${API_BASE_URL}${endpoint}?${params.toString()}`;
 }
 
-async function fetchLogs(filters = {}, page = 1, size = 10,mode="EXPLORER") {
-  // if (!hasAppliedFilters(filters)) {
-  //   return {
-  //     content: [],
-  //     totalElements: 0,
-  //     totalPages: 0,
-  //     number: 0,
-  //     size,
-  //     skipped: true
-  //   };
-  // }
-
-  const url = buildLogsUrl(filters, page, size,mode);
+async function fetchLogs(filters = {}, page = 1, size = 10, mode = "EXPLORER") {
+  const url = buildLogsUrl(filters, page, size, mode);
   console.log("Logs API URL:", url);
 
   try {

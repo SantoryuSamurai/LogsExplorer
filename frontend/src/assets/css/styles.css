@@ -431,12 +431,6 @@ body {
   gap: 30px;
 }
 
-/* Table scroll */
-.table-responsive {
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-}
-
 /* Fixed table layout */
 #logsTable {
   table-layout: fixed;
@@ -535,6 +529,71 @@ body {
   font-variant-numeric: tabular-nums;
 }
 
+/* ===== Duration Table Styling ===== */
+
+.duration-view #logsTable th:nth-child(1),
+.duration-view #logsTable td:nth-child(1) {
+  width: 180px;
+}
+
+.duration-view #logsTable th:nth-child(2),
+.duration-view #logsTable td:nth-child(2) {
+  width: 180px;
+}
+
+.duration-view #logsTable th:nth-child(3),
+.duration-view #logsTable td:nth-child(3) {
+  width: 260px;
+  text-align: left;
+}
+
+.duration-view #logsTable th:nth-child(4),
+.duration-view #logsTable td:nth-child(4) {
+  width: 160px;
+}
+
+.duration-view #logsTable th:nth-child(5),
+.duration-view #logsTable td:nth-child(5),
+.duration-view #logsTable th:nth-child(6),
+.duration-view #logsTable td:nth-child(6) {
+  width: 190px;
+}
+
+.duration-view #logsTable th:nth-child(7),
+.duration-view #logsTable td:nth-child(7) {
+  width: 120px;
+}
+
+/* ===== MINMAX Table Styling ===== */
+.minmax-view #logsTable {
+  table-layout: fixed;
+  width: 100%;
+  min-width: 0;
+}
+
+.minmax-view #logsTable th,
+.minmax-view #logsTable td {
+  text-align: center;
+  vertical-align: middle;
+}
+
+.minmax-view #logsTable th:nth-child(1),
+.minmax-view #logsTable td:nth-child(1),
+.minmax-view #logsTable th:nth-child(2),
+.minmax-view #logsTable td:nth-child(2),
+.minmax-view #logsTable th:nth-child(3),
+.minmax-view #logsTable td:nth-child(3),
+.minmax-view #logsTable th:nth-child(4),
+.minmax-view #logsTable td:nth-child(4),
+.minmax-view #logsTable th:nth-child(5),
+.minmax-view #logsTable td:nth-child(5) {
+  width: 120px;
+  min-width: 120px;
+  text-align: center;
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
 .truncate-cell {
   display: block;
   width: 100%;
@@ -554,6 +613,12 @@ body {
   text-decoration: underline;
 }
 
+/* Table scroll */
+.table-responsive {
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
 /* Custom scrollbar */
 .table-responsive::-webkit-scrollbar {
   height: 8px;
@@ -570,7 +635,7 @@ body {
 }
 
 .table-responsive::-webkit-scrollbar-thumb:hover {
-  background: var(--primary);
+  background: #4f7cff;
 }
 
 @media (max-width: 992px) {

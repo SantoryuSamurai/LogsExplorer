@@ -12,7 +12,6 @@ function formatLoggingStage(stage) {
   if (typeof stage === "object") {
     return escapeHtml(stage.text ?? JSON.stringify(stage));
   }
-  // if(stage === "ERROR") return escapeHtml()
   return escapeHtml(stage);
 }
 
@@ -23,6 +22,8 @@ function clickableTruncate(text) {
 }
 
 function renderRows(data) {
+  if (!Array.isArray(data)) return [];
+
   return data.map(item => {
     const stage = formatLoggingStage(item.loggingStage);
     const isError = stage.trim().toUpperCase() === "ERROR";
@@ -45,64 +46,60 @@ function renderRows(data) {
 }
 
 function renderDurationRows(data) {
-  // Ensure data is an array
   if (!Array.isArray(data)) return [];
 
   return data.map(item => {
-    // Map status to badge colors (SUCCESS = green, everything else = red)
     const status = item.status || "UNKNOWN";
     const isSuccess = status.toUpperCase() === "SUCCESS";
     const statusClass = isSuccess ? "badge-pill-success" : "badge-pill-danger";
 
+    const durationSeconds =
+      item.durationMillis === null || item.durationMillis === undefined
+        ? "-"
+        : (item.durationMillis / 1000).toLocaleString();
+
     return [
-      `<span class="interface-code-cell">${escapeHtml(item.interfaceCode)}</span>`,
-      `<span class="txn-id-wrap">${escapeHtml(item.transactionId)}</span>`,
+      // `<span class="application-code-cell">${escapeHtml(item.applicationCode || "-")}</span>`,
+      `<span class="interface-code-cell">${escapeHtml(item.interfaceCode || "-")}</span>`,
+      `<span class="txn-id-wrap">${escapeHtml(item.transactionId || "-")}</span>`,
       `<span class="badge-pill-custom ${statusClass}">${escapeHtml(status)}</span>`,
-      `<span class="log-time-cell">${escapeHtml(item.firstLogTime ? item.firstLogTime.replace('T', ' ') : "-")}</span>`,
-      `<span class="log-time-cell">${escapeHtml(item.lastLogTime ? item.lastLogTime.replace('T', ' ') : "-")}</span>`,
-      `<span class="seq-id">${escapeHtml((item.durationMillis/1000).toLocaleString())}</span>`
+      `<span class="log-time-cell">${escapeHtml(
+        item.firstLogTime ? String(item.firstLogTime).replace("T", " ") : "-"
+      )}</span>`,
+      `<span class="log-time-cell">${escapeHtml(
+        item.lastLogTime ? String(item.lastLogTime).replace("T", " ") : "-"
+      )}</span>`,
+      `<span class="seq-id">${escapeHtml(durationSeconds)}</span>`
     ];
   });
 }
 
-// function initLogsTable(initialData) {
-//   if (logsTable) logsTable.destroy();
+function renderStatsRows(data) {
+  if (!Array.isArray(data)) return [];
 
-//   document.querySelector("#logsTable").innerHTML = "<thead></thead><tbody></tbody>";
+  const toSeconds = (ms) => {
+  if (ms === null || ms === undefined) return "-";
+  return (ms / 1000).toFixed(2);
+};
 
-//   logsTable = new DataTable("#logsTable", {
-//     data: renderRows(initialData),
-//     columns: [
-//       { title: "SEQUENCE_ID" },
-//       { title: "INTERFACE_CODE" },
-//       { title: "APPLICATION_CODE" },
-//       { title: "TRANSACTION_ID" },
-//       { title: "LOGGING_STAGE" },
-//       { title: "TARGET_SERVICE" },
-//       { title: "LOGTIME" },
-//       { title: "LOGGED_MESSAGE" }
-//     ],
-//     paging: false,
-//     searching: false,
-//     info: false,
-//     ordering: false,
-//     responsive: false,
-//     autoWidth: false,
-//     scrollX: false
-//   });
-
-//   return logsTable;
-// }
+  return data.map(item => [
+    `<span class="interface-code-cell">${escapeHtml(item.interfaceCode || "-")}</span>`,
+    `<span class="seq-id">${escapeHtml(item.usageCount ?? 0)}</span>`,
+    `<span class="seq-id">${escapeHtml(toSeconds(item.minDurationMillis))}</span>`,
+    `<span class="seq-id">${escapeHtml(toSeconds(item.maxDurationMillis))}</span>`,
+    `<span class="seq-id">${escapeHtml(toSeconds(item.avgDurationMillis))}</span>`
+  ]);
+}
 
 function initLogsTable(data, mode = "EXPLORER") {
   if (logsTable) {
     logsTable.destroy();
-    // Clear the DOM to prevent header conflicts
     document.querySelector("#logsTable").innerHTML = "<thead></thead><tbody></tbody>";
   }
 
   let columns = [];
   let tableData = [];
+  let columnDefs = [];
 
   if (mode === "EXPLORER") {
     columns = [
@@ -115,9 +112,14 @@ function initLogsTable(data, mode = "EXPLORER") {
       { title: "LOGTIME" },
       { title: "LOGGED_MESSAGE" }
     ];
-    tableData = renderRows(data); // Your existing log explorer row mapper
-  } else {
+    tableData = renderRows(data);
+    columnDefs = [
+      { targets: "_all", className: "dt-center" },
+      { targets: [3, 7], className: "dt-left" }
+    ];
+  } else if (mode === "DURATION") {
     columns = [
+      // { title: "Application_CODE" },
       { title: "INTERFACE_CODE" },
       { title: "TRANSACTION_ID" },
       { title: "STATUS" },
@@ -126,39 +128,56 @@ function initLogsTable(data, mode = "EXPLORER") {
       { title: "DURATION (s)" }
     ];
     tableData = renderDurationRows(data);
-  }
-
-  logsTable = new DataTable("#logsTable", {
-  data: tableData,
-  columns: columns,
-  paging: false,
-  searching: false,
-  info: false,
-  ordering: false,
-  responsive: false,
-  autoWidth: false,
-  scrollX: true,
-
-  columnDefs: [
+    columnDefs = [
+      { targets: "_all", className: "dt-center" },
+      { targets: [2], className: "dt-left" }
+    ];
+  } else if (mode === "MINMAX") {
+    columns = [
+      { title: "INTERFACE_CODE" },
+      { title: "USAGE COUNT" },
+      { title: "MIN DURATION (s)" },
+      { title: "MAX DURATION (s)" },
+      { title: "AVG DURATION (s)" }
+    ];
+    tableData = renderStatsRows(data);
+    columnDefs = [
     {
       targets: "_all",
       className: "dt-center"
-    },
-    {
-      targets: [3, 7], // Transaction ID & Logged Message
-      className: "dt-left"
     }
-  ]
-});
+  ];
+  }
+
+  logsTable = new DataTable("#logsTable", {
+    data: tableData,
+    columns: columns,
+    paging: false,
+    searching: false,
+    info: false,
+    ordering: false,
+    responsive: false,
+    autoWidth: false,
+    scrollX: true,
+    columnDefs: columnDefs
+  });
 
   return logsTable;
 }
 
-
-function refreshTable(data) {
+function refreshTable(data, mode = "EXPLORER") {
   if (!logsTable) return;
+
   logsTable.clear();
-  logsTable.rows.add(renderRows(data));
+
+  if (mode === "EXPLORER") {
+    logsTable.rows.add(renderRows(data));
+  } else if (mode === "DURATION") {
+    logsTable.rows.add(renderDurationRows(data));
+  } else if (mode === "MINMAX") {
+    logsTable.rows.add(renderStatsRows(data));
+  }
+
   logsTable.draw();
 }
 
@@ -254,22 +273,16 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const detailModal = new bootstrap.Modal(detailModalEl);
 
-  // Inside document.addEventListener("DOMContentLoaded", ...)
+  document.addEventListener("click", e => {
+    const target = e.target.closest(".truncate-cell");
+    if (!target) return;
 
-document.addEventListener("click", e => {
-  const target = e.target.closest(".truncate-cell");
-  if (!target) return;
+    const rawData = target.textContent.trim();
+    const formattedData = formatLoggedData(rawData);
 
-  // Get raw text
-  const rawData = target.textContent.trim();
-  
-  // Format it based on content type
-  const formattedData = formatLoggedData(rawData);
-
-  // Inject into modal
-  modalContent.textContent = formattedData;
-  detailModal.show();
-});
+    modalContent.textContent = formattedData;
+    detailModal.show();
+  });
 
   copyBtn.addEventListener("click", async () => {
     const text = modalContent.textContent || "";
@@ -290,15 +303,13 @@ document.addEventListener("click", e => {
   });
 });
 
-
 /**
  * Detects and formats JSON or XML strings for pretty-printing.
  */
 function formatLoggedData(rawText) {
   const text = rawText.trim();
 
-  // 1. Try JSON
-  if (text.startsWith('{') || text.startsWith('[')) {
+  if (text.startsWith("{") || text.startsWith("[")) {
     try {
       const parsed = JSON.parse(text);
       return JSON.stringify(parsed, null, 2);
@@ -307,8 +318,7 @@ function formatLoggedData(rawText) {
     }
   }
 
-  // 2. Try XML
-  if (text.startsWith('<')) {
+  if (text.startsWith("<")) {
     try {
       return formatXml(text);
     } catch (e) {
@@ -316,7 +326,6 @@ function formatLoggedData(rawText) {
     }
   }
 
-  // 3. Fallback to Plain Text
   return text;
 }
 
@@ -324,24 +333,21 @@ function formatLoggedData(rawText) {
  * Simple XML Beautifier using Regex
  */
 function formatXml(xml) {
-  let formatted = '';
-  let indent = '';
-  const tab = '  '; // 2 spaces
-  
-  // Split by tags
-  xml.split(/>\s*</).forEach((node) => {
+  let formatted = "";
+  let indent = "";
+  const tab = "  ";
+
+  xml.split(/>\s*</).forEach(node => {
     if (node.match(/^\/\w/)) {
-      // Closing tag
       indent = indent.substring(tab.length);
     }
-    
-    formatted += indent + '<' + node + '>\r\n';
-    
+
+    formatted += indent + "<" + node + ">\r\n";
+
     if (node.match(/^<?\w[^>]*[^\/]$/) && !node.startsWith("?")) {
-      // Opening tag
       indent += tab;
     }
   });
-  
+
   return formatted.substring(1, formatted.length - 3);
 }
