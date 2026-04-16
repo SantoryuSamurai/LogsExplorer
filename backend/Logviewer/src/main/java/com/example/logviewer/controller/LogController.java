@@ -1,8 +1,11 @@
 package com.example.logviewer.controller;
 
+import com.example.logviewer.model.InterfaceStatsRecord;
 import com.example.logviewer.model.LogRecord;
+import com.example.logviewer.model.LogSearchResponse;
 import com.example.logviewer.model.PagedResponse;
 import com.example.logviewer.model.SearchBy;
+import com.example.logviewer.model.TransactionDurationRecord;
 import com.example.logviewer.service.LogService;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.*;
@@ -13,7 +16,7 @@ import java.util.concurrent.CompletableFuture;
 
 @RestController
 @RequestMapping("/api/logs")
-@CrossOrigin(origins = "http://127.0.0.1:5501")
+@CrossOrigin(origins = "http://127.0.0.1:5500")
 public class LogController {
 
     private final LogService logService;
@@ -38,11 +41,12 @@ public class LogController {
     }
 
     @GetMapping
-    public CompletableFuture<PagedResponse<LogRecord>> getLogs(
+    public CompletableFuture<LogSearchResponse<LogRecord>> getLogs(
             @RequestParam(required = false) SearchBy searchBy,
             @RequestParam(required = false) String searchValue,
             @RequestParam(required = false) String applicationCode,
             @RequestParam(required = false) String interfaceCode,
+            @RequestParam(required = false) String caseType,
             @RequestParam(required = false)
             @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime fromDateTime,
             @RequestParam(required = false)
@@ -53,6 +57,41 @@ public class LogController {
         return logService.searchLogsAsync(
                 searchBy,
                 searchValue,
+                applicationCode,
+                interfaceCode,
+                caseType,
+                fromDateTime,
+                toDateTime,
+                page,
+                size
+        );
+    }
+
+    @GetMapping("/interface-stats")
+    public CompletableFuture<PagedResponse<InterfaceStatsRecord>> getInterfaceStats(
+            @RequestParam(required = false) String applicationCode,
+            @RequestParam(required = false)
+            @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime fromDateTime,
+            @RequestParam(required = false)
+            @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime toDateTime,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return logService.getInterfaceStatsAsync(applicationCode, fromDateTime, toDateTime, page, size);
+    }
+
+    @GetMapping("/durations")
+    public CompletableFuture<PagedResponse<TransactionDurationRecord>> getTransactionDurations(
+            @RequestParam(required = false) String applicationCode,
+            @RequestParam(required = false) String interfaceCode,
+            @RequestParam(required = false)
+            @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime fromDateTime,
+            @RequestParam(required = false)
+            @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime toDateTime,
+            @RequestParam(defaultValue = "1") int page,
+            @RequestParam(defaultValue = "10") int size
+    ) {
+        return logService.getTransactionDurationsAsync(
                 applicationCode,
                 interfaceCode,
                 fromDateTime,

@@ -1,8 +1,12 @@
 package com.example.logviewer.service;
 
+import com.example.logviewer.model.InterfaceStatsRecord;
 import com.example.logviewer.model.LogRecord;
+import com.example.logviewer.model.LogSearchResponse;
+import com.example.logviewer.model.LogSummary;
 import com.example.logviewer.model.PagedResponse;
 import com.example.logviewer.model.SearchBy;
+import com.example.logviewer.model.TransactionDurationRecord;
 import com.example.logviewer.repository.LogRepository;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
@@ -42,9 +46,113 @@ public class LogService {
         return logRepository.getAllInterfaceCodes();
     }
 
-    public CompletableFuture<PagedResponse<LogRecord>> searchLogsAsync(
+    public CompletableFuture<LogSearchResponse<LogRecord>> searchLogsAsync(
             SearchBy searchBy,
             String searchValue,
+            String applicationCode,
+            String interfaceCode,
+            String caseType,
+            LocalDateTime fromDateTime,
+            LocalDateTime toDateTime,
+            int page,
+            int size
+    ) {
+        validatePaging(page, size);
+
+        if (fromDateTime != null && toDateTime != null && fromDateTime.isAfter(toDateTime)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromDateTime must be before toDateTime");
+        }
+
+        String normalizedCaseType = normalizeCaseType(caseType);
+
+        CompletableFuture<PagedResponse<LogRecord>> pageFuture;
+        CompletableFuture<LogSummary> summaryFuture;
+
+        if (searchBy == SearchBy.TRANSACTION_ID) {
+            if (!StringUtils.hasText(searchValue)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "searchValue is required for TRANSACTION_ID");
+            }
+
+            String txId = searchValue.trim();
+
+            pageFuture = CompletableFuture.completedFuture(
+                    logRepository.searchByTransactionId(
+                            txId,
+                            StringUtils.hasText(applicationCode) ? applicationCode.trim() : null,
+                            StringUtils.hasText(interfaceCode) ? interfaceCode.trim() : null,
+                            normalizedCaseType,
+                            fromDateTime,
+                            toDateTime,
+                            page,
+                            size
+                    )
+            );
+
+            summaryFuture = CompletableFuture.supplyAsync(() ->
+                    logRepository.getSummaryByTransactionId(
+                            txId,
+                            StringUtils.hasText(applicationCode) ? applicationCode.trim() : null,
+                            StringUtils.hasText(interfaceCode) ? interfaceCode.trim() : null,
+                            fromDateTime,
+                            toDateTime
+                    ), logQueryExecutor);
+
+        } else if (searchBy == SearchBy.LOGGED_MESSAGE) {
+            if (!StringUtils.hasText(searchValue)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "searchValue is required for LOGGED_MESSAGE");
+            }
+            if (!StringUtils.hasText(applicationCode)) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "applicationCode is required for LOGGED_MESSAGE");
+            }
+            if (fromDateTime == null || toDateTime == null) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromDateTime and toDateTime are required for LOGGED_MESSAGE");
+            }
+
+            String msg = searchValue.trim();
+            String app = applicationCode.trim();
+            String intf = StringUtils.hasText(interfaceCode) ? interfaceCode.trim() : null;
+
+            pageFuture = logRepository.searchByLoggedMessageAsync(
+                    msg,
+                    app,
+                    intf,
+                    normalizedCaseType,
+                    fromDateTime,
+                    toDateTime,
+                    page,
+                    size,
+                    logQueryExecutor
+            );
+
+            summaryFuture = CompletableFuture.completedFuture(new LogSummary(0, 0, 0));
+
+        } else {
+            pageFuture = CompletableFuture.completedFuture(
+                    logRepository.searchLogs(
+                            StringUtils.hasText(applicationCode) ? applicationCode.trim() : null,
+                            StringUtils.hasText(interfaceCode) ? interfaceCode.trim() : null,
+                            normalizedCaseType,
+                            fromDateTime,
+                            toDateTime,
+                            page,
+                            size
+                    )
+            );
+
+            summaryFuture = CompletableFuture.supplyAsync(() ->
+                    logRepository.getSummaryForLogs(
+                            StringUtils.hasText(applicationCode) ? applicationCode.trim() : null,
+                            StringUtils.hasText(interfaceCode) ? interfaceCode.trim() : null,
+                            fromDateTime,
+                            toDateTime
+                    ), logQueryExecutor);
+        }
+
+        return pageFuture.thenCombine(summaryFuture,
+                (pageResult, summary) -> new LogSearchResponse<>(pageResult, summary));
+    }
+
+    public CompletableFuture<PagedResponse<TransactionDurationRecord>> getTransactionDurationsAsync(
             String applicationCode,
             String interfaceCode,
             LocalDateTime fromDateTime,
@@ -58,56 +166,38 @@ public class LogService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromDateTime must be before toDateTime");
         }
 
-        if (searchBy == SearchBy.TRANSACTION_ID) {
-            if (!StringUtils.hasText(searchValue)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "searchValue is required for TRANSACTION_ID");
-            }
-            return CompletableFuture.completedFuture(
-                    logRepository.searchByTransactionId(
-                            searchValue.trim(),
-                            StringUtils.hasText(applicationCode) ? applicationCode.trim() : null,
-                            StringUtils.hasText(interfaceCode) ? interfaceCode.trim() : null,
-                            fromDateTime,
-                            toDateTime,
-                            page,
-                            size
-                    )
-            );
-        }
-
-        if (searchBy == SearchBy.LOGGED_MESSAGE) {
-            if (!StringUtils.hasText(searchValue)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "searchValue is required for LOGGED_MESSAGE");
-            }
-            if (!StringUtils.hasText(applicationCode)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "applicationCode is required for LOGGED_MESSAGE");
-            }
-            if (fromDateTime == null || toDateTime == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromDateTime and toDateTime are required for LOGGED_MESSAGE");
-            }
-
-            return logRepository.searchByLoggedMessageAsync(
-                    searchValue.trim(),
-                    applicationCode.trim(),
-                    StringUtils.hasText(interfaceCode) ? interfaceCode.trim() : null,
-                    fromDateTime,
-                    toDateTime,
-                    page,
-                    size,
-                    logQueryExecutor
-            );
-        }
-
-        return CompletableFuture.completedFuture(
-                logRepository.searchLogs(
+        return CompletableFuture.supplyAsync(() ->
+                logRepository.searchTransactionDurations(
                         StringUtils.hasText(applicationCode) ? applicationCode.trim() : null,
                         StringUtils.hasText(interfaceCode) ? interfaceCode.trim() : null,
                         fromDateTime,
                         toDateTime,
                         page,
                         size
-                )
-        );
+                ), logQueryExecutor);
+    }
+
+    public CompletableFuture<PagedResponse<InterfaceStatsRecord>> getInterfaceStatsAsync(
+            String applicationCode,
+            LocalDateTime fromDateTime,
+            LocalDateTime toDateTime,
+            int page,
+            int size
+    ) {
+        validatePaging(page, size);
+
+        if (fromDateTime != null && toDateTime != null && fromDateTime.isAfter(toDateTime)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromDateTime must be before toDateTime");
+        }
+
+        return CompletableFuture.supplyAsync(() ->
+                logRepository.getInterfaceStats(
+                        StringUtils.hasText(applicationCode) ? applicationCode.trim() : null,
+                        fromDateTime,
+                        toDateTime,
+                        page,
+                        size
+                ), logQueryExecutor);
     }
 
     private void validatePaging(int page, int size) {
@@ -117,5 +207,22 @@ public class LogService {
         if (size < 1) {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "size must be greater than or equal to 1");
         }
+    }
+
+    private String normalizeCaseType(String caseType) {
+        if (!StringUtils.hasText(caseType)) {
+            return null;
+        }
+
+        String value = caseType.trim().toLowerCase();
+        if ("error".equals(value)) {
+            value = "failure";
+        }
+
+        if (!"success".equals(value) && !"failure".equals(value)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "caseType must be success or error");
+        }
+
+        return value;
     }
 }
