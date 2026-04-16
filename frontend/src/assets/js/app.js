@@ -87,15 +87,17 @@ function styleSearchTypeSelect(instance) {
 
   const wrapper = instance.wrapper;
   if (wrapper) {
-    wrapper.style.width = "180px";
-    wrapper.style.minWidth = "180px";
-    wrapper.style.flex = "0 0 180px";
+    wrapper.style.width = "160px";
+    wrapper.style.minWidth = "165px";
+    wrapper.style.maxWidth = "180px";
+    wrapper.style.flex = "0 0 140px";
   }
 
   const control = wrapper?.querySelector?.(".ts-control");
   if (control) {
     control.style.borderTopRightRadius = "0";
     control.style.borderBottomRightRadius = "0";
+    control.style.width = "100%";
   }
 }
 

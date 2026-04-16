@@ -357,7 +357,30 @@ body {
 
 .fixed-width {
   width: 100%;
-  max-width: 520px; /* match your date range width */
+  max-width: 220px; /* match your date range width */
+}
+
+.date-range-group {
+  width: 100%;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 8px;
+}
+
+.date-range-group .date-input {
+  flex: 1 1 0;
+  min-width: 0;
+}
+
+.recent-range-wrap {
+  flex: 0 1 120px;
+  min-width: 80px;
+}
+
+#recentRange {
+  width: 100%;
 }
 
 

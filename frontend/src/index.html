@@ -49,11 +49,11 @@
 
               <div class="col-12 col-lg-6">
                 <label class="section-label">Date Range & Recent</label>
-                <div class="d-flex gap-2 align-items-center flex-wrap flex-lg-nowrap">
-                  <input id="dateFrom" type="datetime-local" class="form-control" />
-                  <i class="bi bi-arrow-right text-secondary"></i>
-                  <input id="dateTo" type="datetime-local" class="form-control" />
-                  <div style="min-width: 140px;">
+                <div class="d-flex gap-2 align-items-center flex-nowrap date-range-group">
+                  <input id="dateFrom" type="datetime-local" class="form-control date-input" />
+                  <i class="bi bi-arrow-right text-secondary flex-shrink-0"></i>
+                  <input id="dateTo" type="datetime-local" class="form-control date-input" />
+                  <div class="recent-range-wrap">
                     <select id="recentRange" class="form-select">
                       <option value="">Recent</option>
                       <option value="15">15 mins</option>
@@ -68,14 +68,14 @@
 
             <div class="row mt-3 g-1 align-items-end">
              
-            <label class="section-label">Search</label>
+            <label class="section-label">Search by</label>
             <div class="search-action-container d-flex align-items-center justify-content-between gap-2  flex-nowrap">
               <div class="d-flex align-items-center flex-grow-1">
                 <div class="input-group search-group">
-                    <select id="searchType" class="form-select border-end-0" style="max-width: 180px; border-top-right-radius: 0; border-bottom-right-radius: 0;">
-                                <option value="transactionId">Transaction ID</option>
-                                <option value="loggedMessage">Logged Message</option>
-                              </select>
+                    <select id="searchType" class="form-select border-end-0">
+                      <option value="transactionId">Transaction ID</option>
+                      <option value="loggedMessage">Logged Message</option>
+                    </select>
                   <input type="text" id="searchKeyword" class="form-control" placeholder="Search..." />
                 </div>
               </div>
