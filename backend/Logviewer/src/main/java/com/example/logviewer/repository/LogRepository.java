@@ -138,6 +138,7 @@ public class LogRepository {
         String groupedSql = """
                 FROM (
                     SELECT
+                    	TRIM(l.APPLICATION_CODE) AS application_code,
                         TRIM(l.INTERFACE_CODE) AS interface_code,
                         TRIM(l.TRANSACTION_ID) AS transaction_id,
                         MIN(l.LOGTIME) AS first_log_time,
@@ -151,7 +152,7 @@ public class LogRepository {
                             ELSE 'SUCCESS'
                         END AS status
                     """ + whereClause + """
-                    GROUP BY TRIM(l.INTERFACE_CODE), TRIM(l.TRANSACTION_ID)
+                    GROUP BY TRIM(l.APPLICATION_CODE),TRIM(l.INTERFACE_CODE), TRIM(l.TRANSACTION_ID)
                 ) x
                 """;
 
@@ -171,7 +172,8 @@ public class LogRepository {
 
         List<TransactionDurationRecord> content = jdbcTemplate.query(dataSql, params, (rs, rowNum) -> {
             TransactionDurationRecord r = new TransactionDurationRecord();
-
+            
+            r.setApplicationCode(rs.getString("application_code"));
             r.setInterfaceCode(rs.getString("interface_code"));
             r.setTransactionId(rs.getString("transaction_id"));
 
