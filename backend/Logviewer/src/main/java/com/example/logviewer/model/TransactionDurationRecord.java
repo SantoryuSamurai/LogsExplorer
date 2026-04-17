@@ -3,13 +3,21 @@ package com.example.logviewer.model;
 import java.time.LocalDateTime;
 
 public class TransactionDurationRecord {
+	private String applicationCode;
     private String interfaceCode;
     private String transactionId;
     private LocalDateTime firstLogTime;
     private LocalDateTime lastLogTime;
     private Long durationMillis;
     private String status;
+    
+    public String getApplicationCode() {
+        return applicationCode;
+    }
 
+    public void setApplicationCode(String applicationCode) {
+        this.applicationCode = applicationCode;
+    }
     public String getInterfaceCode() {
         return interfaceCode;
     }
