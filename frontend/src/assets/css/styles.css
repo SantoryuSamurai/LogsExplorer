@@ -476,7 +476,7 @@ body {
 #logsTable td:nth-child(4) {
   width: 260px;
   min-width: 260px;
-  text-align: left;
+  /* text-align: left; */
   vertical-align: top;
 }
 

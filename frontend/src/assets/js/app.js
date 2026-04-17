@@ -318,7 +318,7 @@ async function renderCurrentPage() {
 
     initLogsTable(tableData, activeTab);
 
-    const showSummary = activeTab === "EXPLORER" || activeTab === "DURATION";
+    const showSummary = activeTab === "EXPLORER";
 
           if (showSummary) {
             setSummaryVisible(true);

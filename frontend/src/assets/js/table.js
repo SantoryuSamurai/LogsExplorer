@@ -34,7 +34,7 @@ function renderRows(data) {
       `<span class="seq-id">${escapeHtml(item.sequenceId)}</span>`,
       `<span class="interface-code-cell">${escapeHtml(item.interfaceCode)}</span>`,
       `<span class="application-code-cell">${escapeHtml(item.applicationCode)}</span>`,
-      `<div class="txn-id-wrap">${escapeHtml(item.transactionId)}</div>`,
+      `<div class="txn-id-wrap text-start">${escapeHtml(item.transactionId)}</div>`,
       `<div class="logging-stage-cell">
         <span class="badge-pill-custom ${badgeClass} ${badgeRow}">${stage}</span>
       </div>`,
@@ -59,10 +59,10 @@ function renderDurationRows(data) {
         : (item.durationMillis / 1000).toLocaleString();
 
     return [
-      // `<span class="application-code-cell">${escapeHtml(item.applicationCode || "-")}</span>`,
+      `<span class="application-code-cell">${escapeHtml(item.applicationCode || "-")}</span>`,
       `<span class="interface-code-cell">${escapeHtml(item.interfaceCode || "-")}</span>`,
       `<span class="txn-id-wrap">${escapeHtml(item.transactionId || "-")}</span>`,
-      `<span class="badge-pill-custom ${statusClass}">${escapeHtml(status)}</span>`,
+      `<div class="logging-stage-cell"><span class="badge-pill-custom ${statusClass}">${escapeHtml(status)}</span></div>`,
       `<span class="log-time-cell">${escapeHtml(
         item.firstLogTime ? String(item.firstLogTime).replace("T", " ") : "-"
       )}</span>`,
@@ -119,7 +119,7 @@ function initLogsTable(data, mode = "EXPLORER") {
     ];
   } else if (mode === "DURATION") {
     columns = [
-      // { title: "Application_CODE" },
+      { title: "Application_CODE" },
       { title: "INTERFACE_CODE" },
       { title: "TRANSACTION_ID" },
       { title: "STATUS" },
