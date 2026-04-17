@@ -32,8 +32,8 @@ function renderRows(data) {
 
     return [
       `<span class="seq-id">${escapeHtml(item.sequenceId)}</span>`,
-      `<span class="interface-code-cell">${escapeHtml(item.interfaceCode)}</span>`,
       `<span class="application-code-cell">${escapeHtml(item.applicationCode)}</span>`,
+      `<span class="interface-code-cell">${escapeHtml(item.interfaceCode)}</span>`,
       `<div class="txn-id-wrap text-start">${escapeHtml(item.transactionId)}</div>`,
       `<div class="logging-stage-cell">
         <span class="badge-pill-custom ${badgeClass} ${badgeRow}">${stage}</span>
@@ -104,8 +104,8 @@ function initLogsTable(data, mode = "EXPLORER") {
   if (mode === "EXPLORER") {
     columns = [
       { title: "SEQUENCE_ID" },
-      { title: "INTERFACE_CODE" },
       { title: "APPLICATION_CODE" },
+      { title: "INTERFACE_CODE" },
       { title: "TRANSACTION_ID" },
       { title: "LOGGING_STAGE" },
       { title: "TARGET_SERVICE" },
