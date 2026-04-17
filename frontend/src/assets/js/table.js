@@ -203,7 +203,7 @@ function renderPager(currentPage, totalPages, onPageChange) {
   const createBtn = (label, page, disabled = false, active = false) => {
     const btn = document.createElement("button");
     btn.type = "button";
-    btn.textContent = label;
+    btn.innerHTML = label;
     btn.disabled = disabled;
 
     if (active) btn.classList.add("active");
@@ -230,7 +230,7 @@ function renderPager(currentPage, totalPages, onPageChange) {
   const hasPrev = currentPage > 1;
   const hasNext = currentPage < totalPages;
 
-  createBtn("Prev", currentPage - 1, !hasPrev, false);
+  createBtn('<i class="bi bi-chevron-left"></i>', currentPage - 1, !hasPrev, false);
 
   if (totalPages <= 4) {
     for (let page = 1; page <= totalPages; page++) {
@@ -261,7 +261,7 @@ function renderPager(currentPage, totalPages, onPageChange) {
     createBtn(String(totalPages), totalPages, currentPage === totalPages, currentPage === totalPages);
   }
 
-  createBtn("Next", currentPage + 1, !hasNext, false);
+  createBtn('<i class="bi bi-chevron-right"></i>', currentPage + 1, !hasNext, false);
 }
 
 document.addEventListener("DOMContentLoaded", () => {
