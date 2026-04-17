@@ -32,9 +32,9 @@ function renderRows(data) {
 
     return [
       `<span class="seq-id">${escapeHtml(item.sequenceId)}</span>`,
-      `<span class="interface-code-cell">${escapeHtml(item.interfaceCode)}</span>`,
       `<span class="application-code-cell">${escapeHtml(item.applicationCode)}</span>`,
-      `<div class="txn-id-wrap">${escapeHtml(item.transactionId)}</div>`,
+      `<span class="interface-code-cell">${escapeHtml(item.interfaceCode)}</span>`,
+      `<div class="txn-id-wrap text-start">${escapeHtml(item.transactionId)}</div>`,
       `<div class="logging-stage-cell">
         <span class="badge-pill-custom ${badgeClass} ${badgeRow}">${stage}</span>
       </div>`,
@@ -59,10 +59,10 @@ function renderDurationRows(data) {
         : (item.durationMillis / 1000).toLocaleString();
 
     return [
-      // `<span class="application-code-cell">${escapeHtml(item.applicationCode || "-")}</span>`,
+      `<span class="application-code-cell">${escapeHtml(item.applicationCode || "-")}</span>`,
       `<span class="interface-code-cell">${escapeHtml(item.interfaceCode || "-")}</span>`,
       `<span class="txn-id-wrap">${escapeHtml(item.transactionId || "-")}</span>`,
-      `<span class="badge-pill-custom ${statusClass}">${escapeHtml(status)}</span>`,
+      `<div class="logging-stage-cell"><span class="badge-pill-custom ${statusClass}">${escapeHtml(status)}</span></div>`,
       `<span class="log-time-cell">${escapeHtml(
         item.firstLogTime ? String(item.firstLogTime).replace("T", " ") : "-"
       )}</span>`,
@@ -104,8 +104,8 @@ function initLogsTable(data, mode = "EXPLORER") {
   if (mode === "EXPLORER") {
     columns = [
       { title: "SEQUENCE_ID" },
-      { title: "INTERFACE_CODE" },
       { title: "APPLICATION_CODE" },
+      { title: "INTERFACE_CODE" },
       { title: "TRANSACTION_ID" },
       { title: "LOGGING_STAGE" },
       { title: "TARGET_SERVICE" },
@@ -119,7 +119,7 @@ function initLogsTable(data, mode = "EXPLORER") {
     ];
   } else if (mode === "DURATION") {
     columns = [
-      // { title: "Application_CODE" },
+      { title: "Application_CODE" },
       { title: "INTERFACE_CODE" },
       { title: "TRANSACTION_ID" },
       { title: "STATUS" },
@@ -135,10 +135,10 @@ function initLogsTable(data, mode = "EXPLORER") {
   } else if (mode === "MINMAX") {
     columns = [
       { title: "INTERFACE_CODE" },
-      { title: "USAGE COUNT" },
-      { title: "MIN DURATION (s)" },
-      { title: "MAX DURATION (s)" },
-      { title: "AVG DURATION (s)" }
+      { title: "USAGE_COUNT" },
+      { title: "MIN_DURATION (s)" },
+      { title: "MAX_DURATION (s)" },
+      { title: "AVG_DURATION (s)" }
     ];
     tableData = renderStatsRows(data);
     columnDefs = [
@@ -159,7 +159,18 @@ function initLogsTable(data, mode = "EXPLORER") {
     responsive: false,
     autoWidth: false,
     scrollX: true,
-    columnDefs: columnDefs
+    columnDefs: columnDefs,
+    createdRow: function(row, data, dataIndex) {
+      if (mode === "EXPLORER") {
+        if (data[4].includes("badge-pill-danger")) {
+          row.classList.add('row-error-bg');
+        }
+      } else {
+        if (data[3].includes("badge-pill-danger")) {
+          row.classList.add('row-error-bg');
+        }
+      }
+    }
   });
 
   return logsTable;
