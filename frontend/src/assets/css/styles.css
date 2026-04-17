@@ -848,3 +848,12 @@ body {
   border-color: transparent;
   color: var(--primary);
 }
+
+.row-error-bg {
+  --bs-table-bg: #f8d7da !important;
+  border: 1px solid #f1aeb5;
+}
+
+.table-hover tbody tr.row-error-bg:hover {
+  --bs-table-bg: #f5c6cb !important;
+}

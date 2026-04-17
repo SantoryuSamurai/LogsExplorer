@@ -135,10 +135,10 @@ function initLogsTable(data, mode = "EXPLORER") {
   } else if (mode === "MINMAX") {
     columns = [
       { title: "INTERFACE_CODE" },
-      { title: "USAGE COUNT" },
-      { title: "MIN DURATION (s)" },
-      { title: "MAX DURATION (s)" },
-      { title: "AVG DURATION (s)" }
+      { title: "USAGE_COUNT" },
+      { title: "MIN_DURATION (s)" },
+      { title: "MAX_DURATION (s)" },
+      { title: "AVG_DURATION (s)" }
     ];
     tableData = renderStatsRows(data);
     columnDefs = [
@@ -159,7 +159,18 @@ function initLogsTable(data, mode = "EXPLORER") {
     responsive: false,
     autoWidth: false,
     scrollX: true,
-    columnDefs: columnDefs
+    columnDefs: columnDefs,
+    createdRow: function(row, data, dataIndex) {
+      if (mode === "EXPLORER") {
+        if (data[4].includes("badge-pill-danger")) {
+          row.classList.add('row-error-bg');
+        }
+      } else {
+        if (data[3].includes("badge-pill-danger")) {
+          row.classList.add('row-error-bg');
+        }
+      }
+    }
   });
 
   return logsTable;
