@@ -115,35 +115,33 @@ async function fetchLogs(filters = {}, page = 1, size = 10, mode = "EXPLORER") {
   }
 }
 
-/**
- * Mock API call for Chart Data
- */
-async function fetchChartData(interfaceCode, from, to, intervalMins) {
-  console.log(
-    `Fetching mock trend for ${interfaceCode} from ${from} to ${to} every ${intervalMins}m`,
-  );
+async function fetchChartData(interfaceCode, from, to, bucket) {
+  if (!interfaceCode || !from || !to) return [];
 
-  // Simulate network delay
-  await new Promise((resolve) => setTimeout(resolve, 500));
+  const params = new URLSearchParams({
+    interfaceCode,
+    fromDateTime: normalizeDateTime(from),
+    toDateTime: normalizeDateTime(to),
+    bucket
+  });
 
-  const start = from ? new Date(from) : new Date(Date.now() - 3600000 * 24); // Default 24h ago
-  const end = to ? new Date(to) : new Date();
-  const step = parseInt(intervalMins) * 60 * 1000;
+  const url = `${API_BASE_URL}/interface-duration-buckets?${params.toString()}`;
+  console.log("Chart API URL:", url);
 
-  const mockPoints = [];
-  let current = new Date(start);
+  try {
+    const response = await fetch(url);
+    if (!response.ok) throw new Error("Failed to fetch chart data");
 
-  while (current <= end) {
-    // Generate a random average between 0.5s and 5.0s
-    const randomAvg = (Math.random() * 4.5 + 0.5).toFixed(3);
+    const result = await response.json();
 
-    mockPoints.push({
-      time: current.toLocaleString("en-GB", { hour12: false }).replace(",", ""),
-      avgDuration: parseFloat(randomAvg),
-    });
+    // Transform backend → chart format
+    return result.map(item => ({
+      time: `${item.bucketStart.replace("T", " ")} → ${item.bucketEnd.replace("T", " ")}`,
+      avgDuration: item.avgDurationMillis
+    }));
 
-    current = new Date(current.getTime() + step);
+  } catch (e) {
+    console.error("Chart fetch error:", e);
+    return [];
   }
-
-  return mockPoints;
 }

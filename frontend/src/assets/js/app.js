@@ -558,13 +558,19 @@ document.addEventListener("DOMContentLoaded", async () => {
     .addEventListener("click", refreshTrendChart);
 
   async function refreshTrendChart() {
-    const from = document.getElementById("chartDateFrom").value;
-    const to = document.getElementById("chartDateTo").value;
-    const interval = document.getElementById("chartInterval").value;
+  const from = document.getElementById("chartDateFrom").value;
+  const to = document.getElementById("chartDateTo").value;
+  const interval = document.getElementById("chartInterval").value;
 
-    const data = await fetchChartData(activeTrendInterface, from, to, interval);
-    renderTrendChart(data);
-  }
+  // Map UI → backend format
+  let bucket;
+  if (interval === "10min") bucket = "10mins";
+  else if (interval === "1hr") bucket = "1hr";
+  else if (interval === "2hr") bucket = "2hr";
+
+  const data = await fetchChartData(activeTrendInterface, from, to, bucket);
+  renderTrendChart(data);
+}
 
   function renderTrendChart(data) {
     const ctx = document.getElementById("interfaceChart").getContext("2d");
