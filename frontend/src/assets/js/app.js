@@ -5,9 +5,11 @@ let appliedFilters = {
   toDateTime: "",
   searchBy: "",
   searchValue: "",
-  caseType: ""
+  caseType: "",
 };
 
+let trendChart = null;
+let activeTrendInterface = "";
 
 let currentPage = 1;
 let pageSize = 10;
@@ -37,7 +39,11 @@ document.querySelectorAll("#logTabs button").forEach((button) => {
     initLogsTable([], activeTab);
     updateEntriesText(0, 0, 0);
     renderPager(1, 0, goToPage);
-    updateSummaryUI({ successCount: 0, errorCount: 0, uniqueTransactionCount: 0 });
+    updateSummaryUI({
+      successCount: 0,
+      errorCount: 0,
+      uniqueTransactionCount: 0,
+    });
 
     clearFilters();
     appliedFilters = {
@@ -47,7 +53,7 @@ document.querySelectorAll("#logTabs button").forEach((button) => {
       toDateTime: "",
       searchBy: "",
       searchValue: "",
-      caseType: ""
+      caseType: "",
     };
     hasSubmittedFilters = false;
 
@@ -102,7 +108,8 @@ function normalizeDateTime(value) {
 
 function getFilterValues() {
   const searchType = getSearchTypeValue();
-  const searchKeyword = document.getElementById("searchKeyword")?.value?.trim() || "";
+  const searchKeyword =
+    document.getElementById("searchKeyword")?.value?.trim() || "";
 
   let searchBy = "";
   if (searchKeyword) {
@@ -119,7 +126,7 @@ function getFilterValues() {
     fromDateTime: document.getElementById("dateFrom")?.value || "",
     toDateTime: document.getElementById("dateTo")?.value || "",
     searchBy,
-    searchValue: searchKeyword
+    searchValue: searchKeyword,
   };
 }
 
@@ -129,7 +136,7 @@ function hasRequiredFilters(filters) {
     (filters.interfaceCode || "").trim() ||
     (filters.fromDateTime || "").trim() ||
     (filters.toDateTime || "").trim() ||
-    (filters.searchValue || "").trim()
+    (filters.searchValue || "").trim(),
   );
 }
 
@@ -141,7 +148,9 @@ function validateSearchFilters(filters) {
     }
 
     if (!filters.fromDateTime || !filters.toDateTime) {
-      alert("Both From Date and To Date are required for Logged Message search.");
+      alert(
+        "Both From Date and To Date are required for Logged Message search.",
+      );
       return false;
     }
   }
@@ -149,13 +158,18 @@ function validateSearchFilters(filters) {
   return true;
 }
 
-function updateSearchableSelect(instance, items, preserveValue = "", defaultLabel = "All") {
+function updateSearchableSelect(
+  instance,
+  items,
+  preserveValue = "",
+  defaultLabel = "All",
+) {
   if (!instance) return;
 
   instance.clearOptions();
   instance.addOption({ value: "", text: defaultLabel });
 
-  items.forEach(item => {
+  items.forEach((item) => {
     instance.addOption({ value: item, text: item });
   });
 
@@ -171,14 +185,31 @@ function updateSearchableSelect(instance, items, preserveValue = "", defaultLabe
 async function loadApplications() {
   const currentValue = appSelect?.getValue?.() || "";
   const apps = await fetchApplicationCodes();
-  const sortedApps = Array.isArray(apps) ? [...apps].sort((a, b) => a.localeCompare(b)) : [];
-  updateSearchableSelect(appSelect, sortedApps, currentValue, "All Applications");
+  const sortedApps = Array.isArray(apps)
+    ? [...apps].sort((a, b) => a.localeCompare(b))
+    : [];
+  updateSearchableSelect(
+    appSelect,
+    sortedApps,
+    currentValue,
+    "All Applications",
+  );
 }
 
-async function loadInterfaces(applicationCode = "", preserveSelectedInterface = "") {
+async function loadInterfaces(
+  applicationCode = "",
+  preserveSelectedInterface = "",
+) {
   const interfaces = await fetchInterfaceCodes(applicationCode);
-  const sortedInterfaces = Array.isArray(interfaces) ? [...interfaces].sort((a, b) => a.localeCompare(b)) : [];
-  updateSearchableSelect(ifaceSelect, sortedInterfaces, preserveSelectedInterface, "All Interfaces");
+  const sortedInterfaces = Array.isArray(interfaces)
+    ? [...interfaces].sort((a, b) => a.localeCompare(b))
+    : [];
+  updateSearchableSelect(
+    ifaceSelect,
+    sortedInterfaces,
+    preserveSelectedInterface,
+    "All Interfaces",
+  );
 }
 
 function clearFilters() {
@@ -206,8 +237,8 @@ function applyRecentRange() {
 
   const end = new Date();
   const start = new Date(end.getTime() - mins * 60000);
-  const pad = n => String(n).padStart(2, "0");
-  const format = d =>
+  const pad = (n) => String(n).padStart(2, "0");
+  const format = (d) =>
     `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
   document.getElementById("dateFrom").value = format(start);
@@ -235,7 +266,7 @@ function ensurePageSizeControl() {
 
   const select = document.getElementById("pageSizeSelect");
   select.value = String(pageSize);
-  select.addEventListener("change", async e => {
+  select.addEventListener("change", async (e) => {
     pageSize = parseInt(e.target.value, 10) || 10;
     currentPage = 1;
 
@@ -280,13 +311,22 @@ async function renderCurrentPage() {
   try {
     syncTableViewClass(activeTab);
 
-    const response = await fetchLogs(appliedFilters, currentPage, pageSize, activeTab);
+    const response = await fetchLogs(
+      appliedFilters,
+      currentPage,
+      pageSize,
+      activeTab,
+    );
 
     if (!response || response.skipped) {
       initLogsTable([], activeTab);
       updateEntriesText(0, 0, 0);
       renderPager(0, 0, () => {});
-      updateSummaryUI({ successCount: 0, errorCount: 0, uniqueTransactionCount: 0 });
+      updateSummaryUI({
+        successCount: 0,
+        errorCount: 0,
+        uniqueTransactionCount: 0,
+      });
       return;
     }
 
@@ -303,16 +343,32 @@ async function renderCurrentPage() {
       tableData = pageObj.content || [];
       totalElements = pageObj.totalElements || 0;
       totalPages = pageObj.totalPages || 0;
-      updateSummaryUI(response?.summary || { successCount: 0, errorCount: 0, uniqueTransactionCount: 0 });
+      updateSummaryUI(
+        response?.summary || {
+          successCount: 0,
+          errorCount: 0,
+          uniqueTransactionCount: 0,
+        },
+      );
     } else {
       tableData = response.content || [];
       totalElements = response.totalElements || 0;
       totalPages = response.totalPages || 0;
 
       if (isDuration) {
-        updateSummaryUI(response?.summary || { successCount: 0, errorCount: 0, uniqueTransactionCount: 0 });
+        updateSummaryUI(
+          response?.summary || {
+            successCount: 0,
+            errorCount: 0,
+            uniqueTransactionCount: 0,
+          },
+        );
       } else if (isMinMax) {
-        updateSummaryUI({ successCount: 0, errorCount: 0, uniqueTransactionCount: 0 });
+        updateSummaryUI({
+          successCount: 0,
+          errorCount: 0,
+          uniqueTransactionCount: 0,
+        });
       }
     }
 
@@ -320,18 +376,18 @@ async function renderCurrentPage() {
 
     const showSummary = activeTab === "EXPLORER";
 
-          if (showSummary) {
-            setSummaryVisible(true);
-            updateSummaryUI(
-              response?.summary || {
-                successCount: 0,
-                errorCount: 0,
-                uniqueTransactionCount: 0
-              }
-            );
-          } else {
-            setSummaryVisible(false);
-          }
+    if (showSummary) {
+      setSummaryVisible(true);
+      updateSummaryUI(
+        response?.summary || {
+          successCount: 0,
+          errorCount: 0,
+          uniqueTransactionCount: 0,
+        },
+      );
+    } else {
+      setSummaryVisible(false);
+    }
 
     const start = totalElements === 0 ? 0 : (currentPage - 1) * pageSize + 1;
     const end = Math.min(currentPage * pageSize, totalElements);
@@ -361,27 +417,29 @@ async function goToPage(page) {
 }
 
 document.addEventListener("DOMContentLoaded", async () => {
-  setSummaryVisible(false); 
+  setSummaryVisible(false);
   appSelect = new TomSelect("#applicationName", {
     create: false,
     placeholder: "All Applications",
-    allowEmptyOption: true
+    allowEmptyOption: true,
   });
 
   ifaceSelect = new TomSelect("#interfaceName", {
     create: false,
     placeholder: "All Interfaces",
-    allowEmptyOption: true
+    allowEmptyOption: true,
   });
 
   searchTypeSelect = new TomSelect("#searchType", {
     create: false,
     allowEmptyOption: false,
-    controlInput: null
+    controlInput: null,
   });
 
   styleSearchTypeSelect(searchTypeSelect);
-  window.addEventListener("resize", () => styleSearchTypeSelect(searchTypeSelect));
+  window.addEventListener("resize", () =>
+    styleSearchTypeSelect(searchTypeSelect),
+  );
 
   await Promise.all([loadApplications(), loadInterfaces()]);
 
@@ -390,12 +448,12 @@ document.addEventListener("DOMContentLoaded", async () => {
   syncTableViewClass(activeTab);
   resetTableState();
 
-  appSelect.on("change", async value => {
+  appSelect.on("change", async (value) => {
     const currentInterface = ifaceSelect?.getValue?.() || "";
     await loadInterfaces(value, currentInterface);
   });
 
-  document.getElementById("submitBtn").addEventListener("click", async e => {
+  document.getElementById("submitBtn").addEventListener("click", async (e) => {
     e.preventDefault();
 
     const filters = getFilterValues();
@@ -422,7 +480,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       toDateTime: "",
       searchBy: "",
       searchValue: "",
-      caseType: ""
+      caseType: "",
     };
     hasSubmittedFilters = false;
 
@@ -449,8 +507,12 @@ document.addEventListener("DOMContentLoaded", async () => {
     document.getElementById("recentRange").value = "";
   });
 
-  const successPill = document.getElementById("successCount")?.closest(".stat-pill");
-  const errorPill = document.getElementById("errorCount")?.closest(".stat-pill");
+  const successPill = document
+    .getElementById("successCount")
+    ?.closest(".stat-pill");
+  const errorPill = document
+    .getElementById("errorCount")
+    ?.closest(".stat-pill");
 
   if (successPill) {
     successPill.style.cursor = "pointer";
@@ -461,6 +523,90 @@ document.addEventListener("DOMContentLoaded", async () => {
     errorPill.style.cursor = "pointer";
     errorPill.addEventListener("click", () => triggerCaseFilter("error"));
   }
+
+  // Listen for clicks on Interface names in the MINMAX table
+  document.addEventListener("click", async (e) => {
+    const link = e.target.closest(".interface-trend-link");
+    if (!link) return;
+
+    activeTrendInterface = link.getAttribute("data-interface");
+    document.getElementById("chartInterfaceTitle").textContent =
+      activeTrendInterface;
+
+    // Set default dates in modal if empty
+    if (!document.getElementById("chartDateFrom").value) {
+      const d = new Date();
+      d.setHours(d.getHours() - 6);
+      document.getElementById("chartDateFrom").value = d
+        .toISOString()
+        .slice(0, 16);
+      document.getElementById("chartDateTo").value = new Date()
+        .toISOString()
+        .slice(0, 16);
+    }
+
+    const modal = new bootstrap.Modal(document.getElementById("chartModal"));
+    modal.show();
+
+    // Initial Load
+    refreshTrendChart();
+  });
+
+  // Handle "Update Trend" button
+  document
+    .getElementById("updateChartBtn")
+    .addEventListener("click", refreshTrendChart);
+
+  async function refreshTrendChart() {
+    const from = document.getElementById("chartDateFrom").value;
+    const to = document.getElementById("chartDateTo").value;
+    const interval = document.getElementById("chartInterval").value;
+
+    const data = await fetchChartData(activeTrendInterface, from, to, interval);
+    renderTrendChart(data);
+  }
+
+  function renderTrendChart(data) {
+    const ctx = document.getElementById("interfaceChart").getContext("2d");
+
+    if (trendChart) {
+      trendChart.destroy(); // Important: reset the canvas
+    }
+
+    trendChart = new Chart(ctx, {
+      type: "line",
+      data: {
+        labels: data.map((d) => d.time),
+        datasets: [
+          {
+            label: "Avg Duration (Seconds)",
+            data: data.map((d) => d.avgDuration),
+            borderColor: "#4f7cff",
+            backgroundColor: "rgba(79, 124, 255, 0.1)",
+            borderWidth: 2,
+            fill: true,
+            pointBackgroundColor: "#4f7cff",
+          },
+        ],
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: "Avg Durations(S)" },
+          },
+          x: {
+            ticks: { maxRotation: 45, minRotation: 45 },
+          },
+        },
+        plugins: {
+          legend: { position: "top" },
+        },
+      },
+    });
+  }
 });
 
 async function triggerCaseFilter(type) {
@@ -468,7 +614,7 @@ async function triggerCaseFilter(type) {
 
   appliedFilters = {
     ...currentFilters,
-    caseType: type
+    caseType: type,
   };
 
   currentPage = 1;

@@ -24,7 +24,7 @@ function clickableTruncate(text) {
 function renderRows(data) {
   if (!Array.isArray(data)) return [];
 
-  return data.map(item => {
+  return data.map((item) => {
     const stage = formatLoggingStage(item.loggingStage);
     const isError = stage.trim().toUpperCase() === "ERROR";
     const badgeClass = isError ? "badge-pill-danger" : "badge-pill-success";
@@ -40,7 +40,7 @@ function renderRows(data) {
       </div>`,
       `<span class="target-service-cell">${escapeHtml(item.targetService)}</span>`,
       `<span class="log-time-cell">${escapeHtml(item.logTime)}</span>`,
-      `<div class="log-msg-cell">${clickableTruncate(item.loggedMessage)}</div>`
+      `<div class="log-msg-cell">${clickableTruncate(item.loggedMessage)}</div>`,
     ];
   });
 }
@@ -48,15 +48,19 @@ function renderRows(data) {
 function renderDurationRows(data) {
   if (!Array.isArray(data)) return [];
 
-  return data.map(item => {
+  return data.map((item) => {
     const status = item.status || "UNKNOWN";
     const isSuccess = status.toUpperCase() === "SUCCESS";
     const statusClass = isSuccess ? "badge-pill-success" : "badge-pill-danger";
 
+    // const durationSeconds =
+    //   item.durationMillis === null || item.durationMillis === undefined
+    //     ? "-"
+    //     : (item.durationMillis / 1000).toLocaleString();
     const durationSeconds =
       item.durationMillis === null || item.durationMillis === undefined
         ? "-"
-        : (item.durationMillis / 1000).toLocaleString();
+        : item.durationMillis.toLocaleString();
 
     return [
       `<span class="application-code-cell">${escapeHtml(item.applicationCode || "-")}</span>`,
@@ -64,12 +68,12 @@ function renderDurationRows(data) {
       `<span class="txn-id-wrap">${escapeHtml(item.transactionId || "-")}</span>`,
       `<div class="logging-stage-cell"><span class="badge-pill-custom ${statusClass}">${escapeHtml(status)}</span></div>`,
       `<span class="log-time-cell">${escapeHtml(
-        item.firstLogTime ? String(item.firstLogTime).replace("T", " ") : "-"
+        item.firstLogTime ? String(item.firstLogTime).replace("T", " ") : "-",
       )}</span>`,
       `<span class="log-time-cell">${escapeHtml(
-        item.lastLogTime ? String(item.lastLogTime).replace("T", " ") : "-"
+        item.lastLogTime ? String(item.lastLogTime).replace("T", " ") : "-",
       )}</span>`,
-      `<span class="seq-id">${escapeHtml(durationSeconds)}</span>`
+      `<span class="seq-id">${escapeHtml(durationSeconds)}</span>`,
     ];
   });
 }
@@ -78,23 +82,30 @@ function renderStatsRows(data) {
   if (!Array.isArray(data)) return [];
 
   const toSeconds = (ms) => {
-  if (ms === null || ms === undefined) return "-";
-  return (ms / 1000).toFixed(2);
-};
+    if (ms === null || ms === undefined) return "-";
+    // return (ms / 1000).toFixed(2);
+    return ms;
+  };
 
-  return data.map(item => [
-    `<span class="interface-code-cell">${escapeHtml(item.interfaceCode || "-")}</span>`,
+  return data.map((item) => [
+    // `<span class="interface-code-cell">${escapeHtml(item.interfaceCode || "-")}</span>`,
+    `<span class="interface-trend-link " 
+           data-interface="${escapeHtml(item.interfaceCode)}" 
+           style="cursor:pointer;">
+      ${escapeHtml(item.interfaceCode || "-")}
+    </span>`,
     `<span class="seq-id">${escapeHtml(item.usageCount ?? 0)}</span>`,
     `<span class="seq-id">${escapeHtml(toSeconds(item.minDurationMillis))}</span>`,
     `<span class="seq-id">${escapeHtml(toSeconds(item.maxDurationMillis))}</span>`,
-    `<span class="seq-id">${escapeHtml(toSeconds(item.avgDurationMillis))}</span>`
+    `<span class="seq-id">${escapeHtml(toSeconds(item.avgDurationMillis))}</span>`,
   ]);
 }
 
 function initLogsTable(data, mode = "EXPLORER") {
   if (logsTable) {
     logsTable.destroy();
-    document.querySelector("#logsTable").innerHTML = "<thead></thead><tbody></tbody>";
+    document.querySelector("#logsTable").innerHTML =
+      "<thead></thead><tbody></tbody>";
   }
 
   let columns = [];
@@ -110,12 +121,12 @@ function initLogsTable(data, mode = "EXPLORER") {
       { title: "LOGGING_STAGE" },
       { title: "TARGET_SERVICE" },
       { title: "LOGTIME" },
-      { title: "LOGGED_MESSAGE" }
+      { title: "LOGGED_MESSAGE" },
     ];
     tableData = renderRows(data);
     columnDefs = [
       { targets: "_all", className: "dt-center" },
-      { targets: [3, 7], className: "dt-left" }
+      { targets: [3, 7], className: "dt-left" },
     ];
   } else if (mode === "DURATION") {
     columns = [
@@ -125,28 +136,28 @@ function initLogsTable(data, mode = "EXPLORER") {
       { title: "STATUS" },
       { title: "START_LOGTIME" },
       { title: "END_LOGTIME" },
-      { title: "DURATION (s)" }
+      { title: "DURATION (ms)" },
     ];
     tableData = renderDurationRows(data);
     columnDefs = [
       { targets: "_all", className: "dt-center" },
-      { targets: [2], className: "dt-left" }
+      { targets: [2], className: "dt-left" },
     ];
   } else if (mode === "MINMAX") {
     columns = [
       { title: "INTERFACE_CODE" },
       { title: "USAGE_COUNT" },
-      { title: "MIN_DURATION (s)" },
-      { title: "MAX_DURATION (s)" },
-      { title: "AVG_DURATION (s)" }
+      { title: "MIN_DURATION (ms)" },
+      { title: "MAX_DURATION (ms)" },
+      { title: "AVG_DURATION (ms)" },
     ];
     tableData = renderStatsRows(data);
     columnDefs = [
-  {
-    targets: "_all",
-    className: "dt-head-center dt-body-center"
-  }
-];
+      {
+        targets: "_all",
+        className: "dt-head-center dt-body-center",
+      },
+    ];
   }
 
   logsTable = new DataTable("#logsTable", {
@@ -160,17 +171,17 @@ function initLogsTable(data, mode = "EXPLORER") {
     autoWidth: false,
     scrollX: true,
     columnDefs: columnDefs,
-    createdRow: function(row, data, dataIndex) {
+    createdRow: function (row, data, dataIndex) {
       if (mode === "EXPLORER") {
         if (data[4].includes("badge-pill-danger")) {
-          row.classList.add('row-error-bg');
+          row.classList.add("row-error-bg");
         }
       } else {
         if (data[3].includes("badge-pill-danger")) {
-          row.classList.add('row-error-bg');
+          row.classList.add("row-error-bg");
         }
       }
-    }
+    },
   });
 
   return logsTable;
@@ -241,7 +252,12 @@ function renderPager(currentPage, totalPages, onPageChange) {
   const hasPrev = currentPage > 1;
   const hasNext = currentPage < totalPages;
 
-  createBtn('<i class="bi bi-chevron-left"></i>', currentPage - 1, !hasPrev, false);
+  createBtn(
+    '<i class="bi bi-chevron-left"></i>',
+    currentPage - 1,
+    !hasPrev,
+    false,
+  );
 
   if (totalPages <= 4) {
     for (let page = 1; page <= totalPages; page++) {
@@ -269,10 +285,20 @@ function renderPager(currentPage, totalPages, onPageChange) {
       createEllipsis();
     }
 
-    createBtn(String(totalPages), totalPages, currentPage === totalPages, currentPage === totalPages);
+    createBtn(
+      String(totalPages),
+      totalPages,
+      currentPage === totalPages,
+      currentPage === totalPages,
+    );
   }
 
-  createBtn('<i class="bi bi-chevron-right"></i>', currentPage + 1, !hasNext, false);
+  createBtn(
+    '<i class="bi bi-chevron-right"></i>',
+    currentPage + 1,
+    !hasNext,
+    false,
+  );
 }
 
 document.addEventListener("DOMContentLoaded", () => {
@@ -284,7 +310,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   const detailModal = new bootstrap.Modal(detailModalEl);
 
-  document.addEventListener("click", e => {
+  document.addEventListener("click", (e) => {
     const target = e.target.closest(".truncate-cell");
     if (!target) return;
 
@@ -348,7 +374,7 @@ function formatXml(xml) {
   let indent = "";
   const tab = "  ";
 
-  xml.split(/>\s*</).forEach(node => {
+  xml.split(/>\s*</).forEach((node) => {
     if (node.match(/^\/\w/)) {
       indent = indent.substring(tab.length);
     }

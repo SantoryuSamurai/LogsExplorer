@@ -32,7 +32,7 @@ function hasAppliedFilters(filters = {}) {
     (filters.interfaceCode || "").trim() ||
     (filters.fromDateTime || "").trim() ||
     (filters.toDateTime || "").trim() ||
-    (filters.searchValue || "").trim()
+    (filters.searchValue || "").trim(),
   );
 }
 
@@ -110,7 +110,40 @@ async function fetchLogs(filters = {}, page = 1, size = 10, mode = "EXPLORER") {
       totalPages: 0,
       number: Math.max(page - 1, 0),
       size,
-      skipped: false
+      skipped: false,
     };
   }
+}
+
+/**
+ * Mock API call for Chart Data
+ */
+async function fetchChartData(interfaceCode, from, to, intervalMins) {
+  console.log(
+    `Fetching mock trend for ${interfaceCode} from ${from} to ${to} every ${intervalMins}m`,
+  );
+
+  // Simulate network delay
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
+  const start = from ? new Date(from) : new Date(Date.now() - 3600000 * 24); // Default 24h ago
+  const end = to ? new Date(to) : new Date();
+  const step = parseInt(intervalMins) * 60 * 1000;
+
+  const mockPoints = [];
+  let current = new Date(start);
+
+  while (current <= end) {
+    // Generate a random average between 0.5s and 5.0s
+    const randomAvg = (Math.random() * 4.5 + 0.5).toFixed(3);
+
+    mockPoints.push({
+      time: current.toLocaleString("en-GB", { hour12: false }).replace(",", ""),
+      avgDuration: parseFloat(randomAvg),
+    });
+
+    current = new Date(current.getTime() + step);
+  }
+
+  return mockPoints;
 }
