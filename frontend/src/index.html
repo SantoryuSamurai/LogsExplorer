@@ -38,9 +38,9 @@
             class="d-flex align-items-center gap-3 w-100 justify-content-end flex-wrap"
           >
             <!-- <div class="search-box">
-            <i class="bi bi-search text-secondary"></i>
-            <input id="globalSearch" type="text" placeholder="Search..." />
-          </div> -->
+              <i class="bi bi-search text-secondary"></i>
+              <input id="globalSearch" type="text" placeholder="Search..." />
+            </div> -->
             <div class="user-chip" title="admin"></div>
           </div>
         </header>
@@ -249,6 +249,7 @@
         </div>
       </div>
     </div>
+
     <div class="modal fade" id="chartModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
@@ -257,6 +258,7 @@
               Performance Trend:
               <span id="chartInterfaceTitle" class="text-primary"></span>
             </h5>
+
             <button
               type="button"
               class="btn-close"
@@ -264,6 +266,7 @@
               aria-label="Close"
             ></button>
           </div>
+
           <div class="modal-body">
             <div class="row g-3 mb-4 p-3 bg-light rounded mx-0 align-items-end">
               <div class="col-md-3">
@@ -274,6 +277,7 @@
                   class="form-control form-control-sm"
                 />
               </div>
+
               <div class="col-md-3">
                 <label class="form-label small fw-bold">To Time</label>
                 <input
@@ -282,14 +286,16 @@
                   class="form-control form-control-sm"
                 />
               </div>
+
               <div class="col-md-3">
                 <label class="form-label small fw-bold">Interval</label>
                 <select id="chartInterval" class="form-select form-select-sm">
                   <option value="10min">10 min</option>
-                <option value="1hr">1 hr</option>
+                  <option value="1hr">1 hr</option>
                   <option value="2hr">2 hr</option>
                 </select>
               </div>
+
               <div class="col-md-3">
                 <button
                   id="updateChartBtn"
@@ -300,7 +306,15 @@
               </div>
             </div>
 
-            <div style="height: 400px; width: 100%">
+            <div class="chart-area">
+              <div id="chartStateMessage" class="chart-state-message">
+                <div class="empty-state">
+                  <i class="bi bi-graph-down fs-1"></i>
+                  <div id="chartStateTitle" class="fw-semibold"></div>
+                  <small id="chartStateSub"></small>
+                </div>
+              </div>
+
               <canvas id="interfaceChart"></canvas>
             </div>
           </div>

@@ -562,21 +562,76 @@ document.addEventListener("DOMContentLoaded", async () => {
   const to = document.getElementById("chartDateTo").value;
   const interval = document.getElementById("chartInterval").value;
 
-  // Map UI → backend format
+  const messageEl = document.getElementById("chartStateMessage");
+  const titleEl = document.getElementById("chartStateTitle");
+  const subEl = document.getElementById("chartStateSub");
+  const canvas = document.getElementById("interfaceChart");
+
+  if (!messageEl || !canvas) return;
+
+  const showState = (title, subText = "", iconClass = "") => {
+    if (titleEl) titleEl.textContent = title;
+    if (subEl) subEl.textContent = subText;
+
+    messageEl.style.display = "flex";
+
+    const iconEl = messageEl.querySelector("i");
+    if (iconEl && iconClass) {
+      iconEl.className = iconClass;
+    }
+
+    canvas.style.display = "none";
+  };
+
+  showState("Loading chart...", "");
+
   let bucket;
   if (interval === "10min") bucket = "10mins";
   else if (interval === "1hr") bucket = "1hr";
   else if (interval === "2hr") bucket = "2hr";
 
-  const data = await fetchChartData(activeTrendInterface, from, to, bucket);
-  renderTrendChart(data);
+  try {
+    const data = await fetchChartData(activeTrendInterface, from, to, bucket);
+
+    if (!data || data.length === 0) {
+      if (trendChart) {
+        trendChart.destroy();
+        trendChart = null;
+      }
+
+      showState(
+        "No data available",
+        "Try adjusting the time range",
+        "bi bi-graph-down fs-1"
+      );
+      return;
+    }
+
+    messageEl.style.display = "none";
+    canvas.style.display = "block";
+
+    renderTrendChart(data);
+  } catch (e) {
+    console.error(e);
+
+    if (trendChart) {
+      trendChart.destroy();
+      trendChart = null;
+    }
+
+    showState(
+      "Failed to load chart",
+      "Please try again",
+      "bi bi-exclamation-triangle fs-1"
+    );
+  }
 }
 
   function renderTrendChart(data) {
     const ctx = document.getElementById("interfaceChart").getContext("2d");
 
     if (trendChart) {
-      trendChart.destroy(); // Important: reset the canvas
+      trendChart.destroy();
     }
 
     trendChart = new Chart(ctx, {
@@ -585,13 +640,18 @@ document.addEventListener("DOMContentLoaded", async () => {
         labels: data.map((d) => d.time),
         datasets: [
           {
-            label: "Avg Duration (Seconds)",
+            label: "Avg Duration (ms)",
             data: data.map((d) => d.avgDuration),
             borderColor: "#4f7cff",
             backgroundColor: "rgba(79, 124, 255, 0.1)",
             borderWidth: 2,
             fill: true,
+            tension: 0,
+            pointRadius: 4,
+            pointHoverRadius: 6,
             pointBackgroundColor: "#4f7cff",
+            pointBorderColor: "#4f7cff",
+            pointBorderWidth: 1,
           },
         ],
       },
@@ -601,10 +661,20 @@ document.addEventListener("DOMContentLoaded", async () => {
         scales: {
           y: {
             beginAtZero: true,
-            title: { display: true, text: "Avg Durations(S)" },
+            title: { display: true, text: "Avg Duration (ms)" },
           },
           x: {
-            ticks: { maxRotation: 45, minRotation: 45 },
+           ticks: {
+    autoSkip: true,
+    // maxTicksLimit: 8,
+    minRotation: 45,
+    maxRotation: 45,
+    callback: function (value, index) {
+      const label = this.getLabelForValue(value);
+      // show only "MM-DD HH:mm"
+      return label ? label.slice(5, 16).replace("T", " ") : label;
+    }
+  },
           },
         },
         plugins: {
