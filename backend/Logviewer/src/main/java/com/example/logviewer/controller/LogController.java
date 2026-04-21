@@ -1,5 +1,6 @@
 package com.example.logviewer.controller;
 
+import com.example.logviewer.model.DurationBucketRecord;
 import com.example.logviewer.model.InterfaceStatsRecord;
 import com.example.logviewer.model.LogRecord;
 import com.example.logviewer.model.LogSearchResponse;
@@ -99,5 +100,17 @@ public class LogController {
                 page,
                 size
         );
+    }
+    
+    @GetMapping("/interface-duration-buckets")
+    public List<DurationBucketRecord> getInterfaceDurationBuckets(
+            @RequestParam String interfaceCode,
+            @RequestParam
+            @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime fromDateTime,
+            @RequestParam
+            @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime toDateTime,
+            @RequestParam String bucket
+    ) {
+        return logService.getInterfaceDurationBuckets(interfaceCode, fromDateTime, toDateTime, bucket);
     }
 }

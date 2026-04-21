@@ -1,5 +1,6 @@
 package com.example.logviewer.repository;
 
+import com.example.logviewer.model.DurationBucketRecord;
 import com.example.logviewer.model.InterfaceStatsRecord;
 import com.example.logviewer.model.LogRecord;
 import com.example.logviewer.model.LogSummary;
@@ -9,7 +10,6 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
-import java.util.LinkedHashMap;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -18,6 +18,7 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
@@ -25,6 +26,10 @@ import java.util.concurrent.Executor;
 
 @Repository
 public class LogRepository {
+
+    private static final String BASE_LOG_TABLE = "BOVOSB.MWTB_INTERFACE_AUDIT_LOG";
+    private static final String SUCCESS_LOG_VIEW = "BOVOSB.VW_IF_AU_SUCCESS_LOG";
+    private static final String ERROR_LOG_TABLE = "BOVOSB.MWTB_IF_ERROR_LOG";
 
     private final NamedParameterJdbcTemplate jdbcTemplate;
 
@@ -127,7 +132,7 @@ public class LogRepository {
         int offset = (page - 1) * size;
 
         StringBuilder whereClause = new StringBuilder("""
-                FROM BOVOSB.MWTB_INTERFACE_AUDIT_LOG l
+                FROM BOVOSB.VW_IF_AU_SUCCESS_LOG l
                 WHERE 1=1
                 """);
 
@@ -138,21 +143,16 @@ public class LogRepository {
         String groupedSql = """
                 FROM (
                     SELECT
-                    	TRIM(l.APPLICATION_CODE) AS application_code,
+                        TRIM(l.APPLICATION_CODE) AS application_code,
                         TRIM(l.INTERFACE_CODE) AS interface_code,
                         TRIM(l.TRANSACTION_ID) AS transaction_id,
                         MIN(l.LOGTIME) AS first_log_time,
-                        MAX(l.LOGTIME) AS last_log_time,
-                        CASE
-                            WHEN EXISTS (
-                                SELECT 1
-                                FROM BOVOSB.MWTB_IF_ERROR_LOG e
-                                WHERE TRIM(e.TRANSACTION_ID) = TRIM(l.TRANSACTION_ID)
-                            ) THEN 'FAILURE'
-                            ELSE 'SUCCESS'
-                        END AS status
+                        MAX(l.LOGTIME) AS last_log_time
                     """ + whereClause + """
-                    GROUP BY TRIM(l.APPLICATION_CODE),TRIM(l.INTERFACE_CODE), TRIM(l.TRANSACTION_ID)
+                    GROUP BY
+                        TRIM(l.APPLICATION_CODE),
+                        TRIM(l.INTERFACE_CODE),
+                        TRIM(l.TRANSACTION_ID)
                 ) x
                 """;
 
@@ -172,7 +172,7 @@ public class LogRepository {
 
         List<TransactionDurationRecord> content = jdbcTemplate.query(dataSql, params, (rs, rowNum) -> {
             TransactionDurationRecord r = new TransactionDurationRecord();
-            
+
             r.setApplicationCode(rs.getString("application_code"));
             r.setInterfaceCode(rs.getString("interface_code"));
             r.setTransactionId(rs.getString("transaction_id"));
@@ -192,7 +192,7 @@ public class LogRepository {
                 r.setDurationMillis(0L);
             }
 
-            r.setStatus(rs.getString("status"));
+            r.setStatus("SUCCESS");
             return r;
         });
 
@@ -359,7 +359,6 @@ public class LogRepository {
     }
 
     private long fetchSuccessCount(String whereClause, MapSqlParameterSource params) {
-
         String sql = new StringBuilder()
                 .append("SELECT COUNT(DISTINCT TRIM(l.TRANSACTION_ID)) ")
                 .append(whereClause)
@@ -493,7 +492,7 @@ public class LogRepository {
                     .append(" )");
         }
     }
-    
+
     public PagedResponse<InterfaceStatsRecord> getInterfaceStats(
             String applicationCode,
             LocalDateTime fromDateTime,
@@ -501,88 +500,122 @@ public class LogRepository {
             int page,
             int size
     ) {
-        StringBuilder sql = new StringBuilder("""
-                SELECT
-                    TRIM(l.INTERFACE_CODE) AS interface_code,
-                    TRIM(l.TRANSACTION_ID) AS transaction_id,
-                    MIN(l.LOGTIME) AS first_log_time,
-                    MAX(l.LOGTIME) AS last_log_time
-                FROM BOVOSB.MWTB_INTERFACE_AUDIT_LOG l
+        int offset = (page - 1) * size;
+
+        StringBuilder filters = new StringBuilder("""
                 WHERE 1=1
                 """);
 
         MapSqlParameterSource params = new MapSqlParameterSource();
-        appendBaseFilters(sql, params, applicationCode, null, fromDateTime, toDateTime, "l");
-        sql.append(" AND l.INTERFACE_CODE IS NOT NULL");
-        sql.append(" AND l.TRANSACTION_ID IS NOT NULL");
-        sql.append(" GROUP BY TRIM(l.INTERFACE_CODE), TRIM(l.TRANSACTION_ID)");
+        appendBaseFilters(filters, params, applicationCode, null, fromDateTime, toDateTime, "l");
 
-        List<InterfaceTransactionSpan> spans = jdbcTemplate.query(sql.toString(), params, (rs, rowNum) -> {
-            InterfaceTransactionSpan row = new InterfaceTransactionSpan();
-            row.interfaceCode = rs.getString("interface_code");
+        String sql = """
+                WITH tx_spans AS (
+                    SELECT
+                        TRIM(l.INTERFACE_CODE) AS interface_code,
+                        TRIM(l.TRANSACTION_ID) AS transaction_id,
+                        MIN(l.LOGTIME) AS first_log_time,
+                        MAX(l.LOGTIME) AS last_log_time
+                    FROM BOVOSB.VW_IF_AU_SUCCESS_LOG l
+                """ + filters.toString() + """
+                    AND l.INTERFACE_CODE IS NOT NULL
+                    AND l.TRANSACTION_ID IS NOT NULL
+                    GROUP BY TRIM(l.INTERFACE_CODE), TRIM(l.TRANSACTION_ID)
+                    HAVING COUNT(*) > 1
+                       AND MIN(l.LOGTIME) < MAX(l.LOGTIME)
+                ),
+                tx_duration AS (
+                    SELECT
+                        interface_code,
+                        transaction_id,
+                        first_log_time,
+                        last_log_time,
+                        (
+                            EXTRACT(DAY FROM (last_log_time - first_log_time)) * 86400000 +
+                            EXTRACT(HOUR FROM (last_log_time - first_log_time)) * 3600000 +
+                            EXTRACT(MINUTE FROM (last_log_time - first_log_time)) * 60000 +
+                            ROUND(EXTRACT(SECOND FROM (last_log_time - first_log_time)) * 1000)
+                        ) AS duration_millis
+                    FROM tx_spans
+                ),
+                interface_stats AS (
+                    SELECT
+                        interface_code,
+                        COUNT(*) AS usage_count,
+                        MIN(duration_millis) AS min_duration_millis,
+                        MAX(duration_millis) AS max_duration_millis,
+                        ROUND(AVG(duration_millis)) AS avg_duration_millis
+                    FROM tx_duration
+                    WHERE duration_millis > 0
+                    GROUP BY interface_code
+                )
+                SELECT
+                    interface_code,
+                    usage_count,
+                    min_duration_millis,
+                    max_duration_millis,
+                    avg_duration_millis
+                FROM interface_stats
+                ORDER BY usage_count DESC, interface_code
+                OFFSET :offset ROWS FETCH NEXT :size ROWS ONLY
+                """;
 
-            Timestamp first = rs.getTimestamp("first_log_time");
-            Timestamp last = rs.getTimestamp("last_log_time");
+        params.addValue("offset", offset);
+        params.addValue("size", size);
 
-            row.firstLogTime = first != null ? first.toLocalDateTime() : null;
-            row.lastLogTime = last != null ? last.toLocalDateTime() : null;
-            return row;
+        List<InterfaceStatsRecord> content = jdbcTemplate.query(sql, params, (rs, rowNum) -> {
+            InterfaceStatsRecord record = new InterfaceStatsRecord();
+            record.setInterfaceCode(rs.getString("interface_code"));
+            record.setUsageCount(rs.getLong("usage_count"));
+            record.setMinDurationMillis(rs.getLong("min_duration_millis"));
+            record.setMaxDurationMillis(rs.getLong("max_duration_millis"));
+            record.setAvgDurationMillis(rs.getLong("avg_duration_millis"));
+            return record;
         });
 
-        Map<String, StatsAccumulator> map = new LinkedHashMap<>();
+        String countSql = """
+                WITH tx_spans AS (
+                    SELECT
+                        TRIM(l.INTERFACE_CODE) AS interface_code,
+                        TRIM(l.TRANSACTION_ID) AS transaction_id,
+                        MIN(l.LOGTIME) AS first_log_time,
+                        MAX(l.LOGTIME) AS last_log_time
+                    FROM BOVOSB.VW_IF_AU_SUCCESS_LOG l
+                """ + filters.toString() + """
+                    AND l.INTERFACE_CODE IS NOT NULL
+                    AND l.TRANSACTION_ID IS NOT NULL
+                    GROUP BY TRIM(l.INTERFACE_CODE), TRIM(l.TRANSACTION_ID)
+                    HAVING COUNT(*) > 1
+                       AND MIN(l.LOGTIME) < MAX(l.LOGTIME)
+                ),
+                tx_duration AS (
+                    SELECT
+                        interface_code,
+                        (
+                            EXTRACT(DAY FROM (last_log_time - first_log_time)) * 86400000 +
+                            EXTRACT(HOUR FROM (last_log_time - first_log_time)) * 3600000 +
+                            EXTRACT(MINUTE FROM (last_log_time - first_log_time)) * 60000 +
+                            ROUND(EXTRACT(SECOND FROM (last_log_time - first_log_time)) * 1000)
+                        ) AS duration_millis
+                    FROM tx_spans
+                ),
+                interface_stats AS (
+                    SELECT interface_code
+                    FROM tx_duration
+                    WHERE duration_millis > 0
+                    GROUP BY interface_code
+                )
+                SELECT COUNT(*) FROM interface_stats
+                """;
 
-        for (InterfaceTransactionSpan span : spans) {
-            if (span.interfaceCode == null) {
-                continue;
-            }
+        Long totalObj = jdbcTemplate.queryForObject(countSql, params, Long.class);
+        long totalElements = totalObj != null ? totalObj : 0L;
 
-            long durationMillis = 0L;
-            if (span.firstLogTime != null && span.lastLogTime != null) {
-                durationMillis = Duration.between(span.firstLogTime, span.lastLogTime).toMillis();
-            }
-
-            StatsAccumulator acc = map.computeIfAbsent(span.interfaceCode, k -> new StatsAccumulator());
-            acc.usageCount++;
-            acc.totalDurationMillis += durationMillis;
-
-            if (acc.usageCount == 1) {
-                acc.minDurationMillis = durationMillis;
-                acc.maxDurationMillis = durationMillis;
-            } else {
-                acc.minDurationMillis = Math.min(acc.minDurationMillis, durationMillis);
-                acc.maxDurationMillis = Math.max(acc.maxDurationMillis, durationMillis);
-            }
-        }
-
-        List<InterfaceStatsRecord> result = new ArrayList<>();
-        for (Map.Entry<String, StatsAccumulator> entry : map.entrySet()) {
-            StatsAccumulator acc = entry.getValue();
-            long avg = acc.usageCount == 0 ? 0L : Math.round((double) acc.totalDurationMillis / acc.usageCount);
-
-            InterfaceStatsRecord record = new InterfaceStatsRecord();
-            record.setInterfaceCode(entry.getKey());
-            record.setUsageCount(acc.usageCount);
-            record.setMinDurationMillis(acc.minDurationMillis);
-            record.setMaxDurationMillis(acc.maxDurationMillis);
-            record.setAvgDurationMillis(avg);
-
-            result.add(record);
-        }
-
-        result.sort(Comparator
-                .comparingLong(InterfaceStatsRecord::getUsageCount).reversed()
-                .thenComparing(InterfaceStatsRecord::getInterfaceCode));
-
-        long totalElements = result.size();
         int totalPages = totalElements == 0 ? 0 : (int) Math.ceil((double) totalElements / size);
 
-        int fromIndex = Math.min((page - 1) * size, result.size());
-        int toIndex = Math.min(fromIndex + size, result.size());
-
-        List<InterfaceStatsRecord> pageContent = result.subList(fromIndex, toIndex);
-
-        return new PagedResponse<>(pageContent, totalElements, totalPages, page, size);
+        return new PagedResponse<>(content, totalElements, totalPages, page, size);
     }
+
     private PagedResponse<LogRecord> executePagedQuery(
             String whereClause,
             MapSqlParameterSource params,
@@ -635,6 +668,80 @@ public class LogRepository {
         return r;
     }
     
+    public List<DurationBucketRecord> getAvgDurationByBucket(
+            String interfaceCode,
+            LocalDateTime fromDateTime,
+            LocalDateTime toDateTime,
+            int bucketMinutes
+    ) {
+        String sql = """
+                WITH tx_spans AS (
+                    SELECT
+                        TRIM(l.INTERFACE_CODE) AS interface_code,
+                        TRIM(l.TRANSACTION_ID) AS transaction_id,
+                        MIN(l.LOGTIME) AS first_log_time,
+                        MAX(l.LOGTIME) AS last_log_time
+                    FROM BOVOSB.VW_IF_AU_SUCCESS_LOG l
+                    WHERE l.INTERFACE_CODE = :interfaceCode
+                      AND l.LOGTIME >= :fromDateTime
+                      AND l.LOGTIME <= :toDateTime
+                      AND l.TRANSACTION_ID IS NOT NULL
+                    GROUP BY TRIM(l.INTERFACE_CODE), TRIM(l.TRANSACTION_ID)
+                    HAVING COUNT(*) > 1
+                       AND MIN(l.LOGTIME) < MAX(l.LOGTIME)
+                ),
+                tx_duration AS (
+                    SELECT
+                        interface_code,
+                        transaction_id,
+                        first_log_time,
+                        last_log_time,
+                        (
+                            EXTRACT(DAY FROM (last_log_time - first_log_time)) * 86400000 +
+                            EXTRACT(HOUR FROM (last_log_time - first_log_time)) * 3600000 +
+                            EXTRACT(MINUTE FROM (last_log_time - first_log_time)) * 60000 +
+                            ROUND(EXTRACT(SECOND FROM (last_log_time - first_log_time)) * 1000)
+                        ) AS duration_millis,
+                        TRUNC(first_log_time)
+                        + NUMTODSINTERVAL(
+                            FLOOR(
+                                (EXTRACT(HOUR FROM first_log_time) * 60 + EXTRACT(MINUTE FROM first_log_time))
+                                / :bucketMinutes
+                            ) * :bucketMinutes,
+                            'MINUTE'
+                        ) AS bucket_start
+                    FROM tx_spans
+                )
+                SELECT
+                    bucket_start,
+                    bucket_start + NUMTODSINTERVAL(:bucketMinutes, 'MINUTE') AS bucket_end,
+                    COUNT(*) AS transaction_count,
+                    ROUND(AVG(duration_millis)) AS avg_duration_millis
+                FROM tx_duration
+                WHERE duration_millis > 0
+                GROUP BY bucket_start
+                ORDER BY bucket_start
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("interfaceCode", interfaceCode);
+        params.addValue("fromDateTime", fromDateTime);
+        params.addValue("toDateTime", toDateTime);
+        params.addValue("bucketMinutes", bucketMinutes);
+
+        return jdbcTemplate.query(sql, params, (rs, rowNum) -> {
+            DurationBucketRecord r = new DurationBucketRecord();
+            Timestamp startTs = rs.getTimestamp("bucket_start");
+            Timestamp endTs = rs.getTimestamp("bucket_end");
+
+            r.setBucketStart(startTs != null ? startTs.toLocalDateTime() : null);
+            r.setBucketEnd(endTs != null ? endTs.toLocalDateTime() : null);
+            r.setTransactionCount(rs.getLong("transaction_count"));
+            r.setAvgDurationMillis(rs.getLong("avg_duration_millis"));
+            return r;
+        });
+    }
+
     private static class InterfaceTransactionSpan {
         private String interfaceCode;
         private LocalDateTime firstLogTime;

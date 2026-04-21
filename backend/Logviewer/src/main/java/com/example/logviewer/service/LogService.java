@@ -1,5 +1,6 @@
 package com.example.logviewer.service;
 
+import com.example.logviewer.model.DurationBucketRecord;
 import com.example.logviewer.model.InterfaceStatsRecord;
 import com.example.logviewer.model.LogRecord;
 import com.example.logviewer.model.LogSearchResponse;
@@ -224,5 +225,81 @@ public class LogService {
         }
 
         return value;
+    }
+    
+    public List<DurationBucketRecord> getInterfaceDurationBuckets(
+            String interfaceCode,
+            LocalDateTime fromDateTime,
+            LocalDateTime toDateTime,
+            String bucket
+    ) {
+        if (!StringUtils.hasText(interfaceCode)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "interfaceCode is required");
+        }
+        if (fromDateTime == null || toDateTime == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromDateTime and toDateTime are required");
+        }
+        if (fromDateTime.isAfter(toDateTime)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromDateTime must be before toDateTime");
+        }
+
+        int bucketMinutes = parseBucketToMinutes(bucket);
+
+        return logRepository.getAvgDurationByBucket(
+                interfaceCode.trim(),
+                fromDateTime,
+                toDateTime,
+                bucketMinutes
+        );
+    }
+
+    private int parseBucketToMinutes(String bucket) {
+        if (!StringUtils.hasText(bucket)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bucket is required");
+        }
+
+        String normalized = bucket.trim().toLowerCase().replace(" ", "");
+
+        if (normalized.endsWith("mins")) {
+            String num = normalized.substring(0, normalized.length() - 4);
+            return parsePositiveInt(num, bucket);
+        }
+
+        if (normalized.endsWith("min")) {
+            String num = normalized.substring(0, normalized.length() - 3);
+            return parsePositiveInt(num, bucket);
+        }
+
+        if (normalized.endsWith("hr")) {
+            String num = normalized.substring(0, normalized.length() - 2);
+            return parsePositiveInt(num, bucket) * 60;
+        }
+
+        if (normalized.endsWith("hrs")) {
+            String num = normalized.substring(0, normalized.length() - 3);
+            return parsePositiveInt(num, bucket) * 60;
+        }
+
+        if (normalized.endsWith("hour")) {
+            String num = normalized.substring(0, normalized.length() - 4);
+            return parsePositiveInt(num, bucket) * 60;
+        }
+
+        throw new ResponseStatusException(
+                HttpStatus.BAD_REQUEST,
+                "bucket must be like 10mins, 1hr, 2hr"
+        );
+    }
+
+    private int parsePositiveInt(String value, String originalBucket) {
+        try {
+            int minutes = Integer.parseInt(value);
+            if (minutes <= 0) {
+                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bucket must be greater than 0: " + originalBucket);
+            }
+            return minutes;
+        } catch (NumberFormatException e) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid bucket value: " + originalBucket);
+        }
     }
 }
