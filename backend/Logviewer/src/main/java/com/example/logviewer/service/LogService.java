@@ -51,7 +51,7 @@ public class LogService {
             SearchBy searchBy,
             String searchValue,
             String applicationCode,
-            String interfaceCode,
+            List<String> interfaceCodes,
             String caseType,
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime,
@@ -64,6 +64,7 @@ public class LogService {
             throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromDateTime must be before toDateTime");
         }
 
+        List<String> normalizedInterfaceCodes = normalizeCodes(interfaceCodes);
         String normalizedCaseType = normalizeCaseType(caseType);
 
         CompletableFuture<PagedResponse<LogRecord>> pageFuture;
@@ -80,7 +81,7 @@ public class LogService {
                     logRepository.searchByTransactionId(
                             txId,
                             StringUtils.hasText(applicationCode) ? applicationCode.trim() : null,
-                            StringUtils.hasText(interfaceCode) ? interfaceCode.trim() : null,
+                            normalizedInterfaceCodes,
                             normalizedCaseType,
                             fromDateTime,
                             toDateTime,
@@ -93,7 +94,7 @@ public class LogService {
                     logRepository.getSummaryByTransactionId(
                             txId,
                             StringUtils.hasText(applicationCode) ? applicationCode.trim() : null,
-                            StringUtils.hasText(interfaceCode) ? interfaceCode.trim() : null,
+                            normalizedInterfaceCodes,
                             fromDateTime,
                             toDateTime
                     ), logQueryExecutor);
@@ -111,12 +112,11 @@ public class LogService {
 
             String msg = searchValue.trim();
             String app = applicationCode.trim();
-            String intf = StringUtils.hasText(interfaceCode) ? interfaceCode.trim() : null;
 
             pageFuture = logRepository.searchByLoggedMessageAsync(
                     msg,
                     app,
-                    intf,
+                    normalizedInterfaceCodes,
                     normalizedCaseType,
                     fromDateTime,
                     toDateTime,
@@ -131,7 +131,7 @@ public class LogService {
             pageFuture = CompletableFuture.completedFuture(
                     logRepository.searchLogs(
                             StringUtils.hasText(applicationCode) ? applicationCode.trim() : null,
-                            StringUtils.hasText(interfaceCode) ? interfaceCode.trim() : null,
+                            normalizedInterfaceCodes,
                             normalizedCaseType,
                             fromDateTime,
                             toDateTime,
@@ -143,7 +143,7 @@ public class LogService {
             summaryFuture = CompletableFuture.supplyAsync(() ->
                     logRepository.getSummaryForLogs(
                             StringUtils.hasText(applicationCode) ? applicationCode.trim() : null,
-                            StringUtils.hasText(interfaceCode) ? interfaceCode.trim() : null,
+                            normalizedInterfaceCodes,
                             fromDateTime,
                             toDateTime
                     ), logQueryExecutor);
@@ -155,7 +155,7 @@ public class LogService {
 
     public CompletableFuture<PagedResponse<TransactionDurationRecord>> getTransactionDurationsAsync(
             String applicationCode,
-            String interfaceCode,
+            List<String> interfaceCodes,
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime,
             int page,
@@ -170,7 +170,7 @@ public class LogService {
         return CompletableFuture.supplyAsync(() ->
                 logRepository.searchTransactionDurations(
                         StringUtils.hasText(applicationCode) ? applicationCode.trim() : null,
-                        StringUtils.hasText(interfaceCode) ? interfaceCode.trim() : null,
+                        normalizeCodes(interfaceCodes),
                         fromDateTime,
                         toDateTime,
                         page,
@@ -180,6 +180,7 @@ public class LogService {
 
     public CompletableFuture<PagedResponse<InterfaceStatsRecord>> getInterfaceStatsAsync(
             String applicationCode,
+            List<String> interfaceCodes,
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime,
             int page,
@@ -194,11 +195,39 @@ public class LogService {
         return CompletableFuture.supplyAsync(() ->
                 logRepository.getInterfaceStats(
                         StringUtils.hasText(applicationCode) ? applicationCode.trim() : null,
+                        normalizeCodes(interfaceCodes),
                         fromDateTime,
                         toDateTime,
                         page,
                         size
                 ), logQueryExecutor);
+    }
+
+    public List<DurationBucketRecord> getInterfaceDurationBuckets(
+            List<String> interfaceCodes,
+            LocalDateTime fromDateTime,
+            LocalDateTime toDateTime,
+            String bucket
+    ) {
+        List<String> normalizedInterfaceCodes = normalizeCodes(interfaceCodes);
+        if (normalizedInterfaceCodes == null || normalizedInterfaceCodes.isEmpty()) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "interfaceCodes is required");
+        }
+        if (fromDateTime == null || toDateTime == null) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromDateTime and toDateTime are required");
+        }
+        if (fromDateTime.isAfter(toDateTime)) {
+            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromDateTime must be before toDateTime");
+        }
+
+        int bucketMinutes = parseBucketToMinutes(bucket);
+
+        return logRepository.getAvgDurationByBucket(
+                normalizedInterfaceCodes,
+                fromDateTime,
+                toDateTime,
+                bucketMinutes
+        );
     }
 
     private void validatePaging(int page, int size) {
@@ -226,31 +255,17 @@ public class LogService {
 
         return value;
     }
-    
-    public List<DurationBucketRecord> getInterfaceDurationBuckets(
-            String interfaceCode,
-            LocalDateTime fromDateTime,
-            LocalDateTime toDateTime,
-            String bucket
-    ) {
-        if (!StringUtils.hasText(interfaceCode)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "interfaceCode is required");
-        }
-        if (fromDateTime == null || toDateTime == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromDateTime and toDateTime are required");
-        }
-        if (fromDateTime.isAfter(toDateTime)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromDateTime must be before toDateTime");
+
+    private List<String> normalizeCodes(List<String> codes) {
+        if (codes == null) {
+            return null;
         }
 
-        int bucketMinutes = parseBucketToMinutes(bucket);
-
-        return logRepository.getAvgDurationByBucket(
-                interfaceCode.trim(),
-                fromDateTime,
-                toDateTime,
-                bucketMinutes
-        );
+        return codes.stream()
+                .filter(StringUtils::hasText)
+                .map(String::trim)
+                .distinct()
+                .toList();
     }
 
     private int parseBucketToMinutes(String bucket) {

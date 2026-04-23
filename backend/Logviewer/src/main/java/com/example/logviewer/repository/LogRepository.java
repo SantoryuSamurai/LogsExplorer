@@ -16,11 +16,7 @@ import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.LocalDateTime;
-import java.util.ArrayList;
-import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
 
@@ -74,7 +70,7 @@ public class LogRepository {
 
     public PagedResponse<LogRecord> searchLogs(
             String applicationCode,
-            String interfaceCode,
+            List<String> interfaceCodes,
             String caseType,
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime,
@@ -89,7 +85,7 @@ public class LogRepository {
                 """);
 
         MapSqlParameterSource params = new MapSqlParameterSource();
-        appendBaseFilters(whereClause, params, applicationCode, interfaceCode, fromDateTime, toDateTime, "l");
+        appendBaseFilters(whereClause, params, applicationCode, interfaceCodes, fromDateTime, toDateTime, "l");
         appendCaseFilter(whereClause, caseType, "l");
 
         return executePagedQuery(whereClause.toString(), params, offset, size);
@@ -98,7 +94,7 @@ public class LogRepository {
     public PagedResponse<LogRecord> searchByTransactionId(
             String transactionId,
             String applicationCode,
-            String interfaceCode,
+            List<String> interfaceCodes,
             String caseType,
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime,
@@ -115,7 +111,7 @@ public class LogRepository {
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("transactionId", transactionId);
 
-        appendBaseFilters(whereClause, params, applicationCode, interfaceCode, fromDateTime, toDateTime, "l");
+        appendBaseFilters(whereClause, params, applicationCode, interfaceCodes, fromDateTime, toDateTime, "l");
         appendCaseFilter(whereClause, caseType, "l");
 
         return executePagedQuery(whereClause.toString(), params, offset, size);
@@ -123,7 +119,7 @@ public class LogRepository {
 
     public PagedResponse<TransactionDurationRecord> searchTransactionDurations(
             String applicationCode,
-            String interfaceCode,
+            List<String> interfaceCodes,
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime,
             int page,
@@ -137,7 +133,7 @@ public class LogRepository {
                 """);
 
         MapSqlParameterSource params = new MapSqlParameterSource();
-        appendBaseFilters(whereClause, params, applicationCode, interfaceCode, fromDateTime, toDateTime, "l");
+        appendBaseFilters(whereClause, params, applicationCode, interfaceCodes, fromDateTime, toDateTime, "l");
         whereClause.append(" AND l.TRANSACTION_ID IS NOT NULL");
 
         String groupedSql = """
@@ -205,7 +201,7 @@ public class LogRepository {
     public PagedResponse<LogRecord> searchByLoggedMessage(
             String searchValue,
             String applicationCode,
-            String interfaceCode,
+            List<String> interfaceCodes,
             String caseType,
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime,
@@ -214,12 +210,12 @@ public class LogRepository {
     ) {
         int offset = (page - 1) * size;
 
-        String whereClause = buildLoggedMessageWhereClause(interfaceCode, caseType);
+        String whereClause = buildLoggedMessageWhereClause(interfaceCodes, caseType);
 
         MapSqlParameterSource params = buildLoggedMessageParams(
                 searchValue,
                 applicationCode,
-                interfaceCode,
+                interfaceCodes,
                 caseType,
                 fromDateTime,
                 toDateTime
@@ -231,7 +227,7 @@ public class LogRepository {
     public CompletableFuture<PagedResponse<LogRecord>> searchByLoggedMessageAsync(
             String searchValue,
             String applicationCode,
-            String interfaceCode,
+            List<String> interfaceCodes,
             String caseType,
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime,
@@ -241,13 +237,13 @@ public class LogRepository {
     ) {
         int offset = (page - 1) * size;
 
-        String whereClause = buildLoggedMessageWhereClause(interfaceCode, caseType);
+        String whereClause = buildLoggedMessageWhereClause(interfaceCodes, caseType);
 
         CompletableFuture<Long> countFuture = CompletableFuture.supplyAsync(() -> {
             MapSqlParameterSource countParams = buildLoggedMessageParams(
                     searchValue,
                     applicationCode,
-                    interfaceCode,
+                    interfaceCodes,
                     caseType,
                     fromDateTime,
                     toDateTime
@@ -262,7 +258,7 @@ public class LogRepository {
             MapSqlParameterSource dataParams = buildLoggedMessageParams(
                     searchValue,
                     applicationCode,
-                    interfaceCode,
+                    interfaceCodes,
                     caseType,
                     fromDateTime,
                     toDateTime
@@ -286,7 +282,7 @@ public class LogRepository {
 
     public LogSummary getSummaryForLogs(
             String applicationCode,
-            String interfaceCode,
+            List<String> interfaceCodes,
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime
     ) {
@@ -296,7 +292,7 @@ public class LogRepository {
                 """);
 
         MapSqlParameterSource params = new MapSqlParameterSource();
-        appendBaseFilters(whereClause, params, applicationCode, interfaceCode, fromDateTime, toDateTime, "l");
+        appendBaseFilters(whereClause, params, applicationCode, interfaceCodes, fromDateTime, toDateTime, "l");
 
         return buildSummary(whereClause.toString(), params);
     }
@@ -304,7 +300,7 @@ public class LogRepository {
     public LogSummary getSummaryByTransactionId(
             String transactionId,
             String applicationCode,
-            String interfaceCode,
+            List<String> interfaceCodes,
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime
     ) {
@@ -316,7 +312,7 @@ public class LogRepository {
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("transactionId", transactionId);
 
-        appendBaseFilters(whereClause, params, applicationCode, interfaceCode, fromDateTime, toDateTime, "l");
+        appendBaseFilters(whereClause, params, applicationCode, interfaceCodes, fromDateTime, toDateTime, "l");
 
         return buildSummary(whereClause.toString(), params);
     }
@@ -324,7 +320,7 @@ public class LogRepository {
     public LogSummary getSummaryByLoggedMessage(
             String searchValue,
             String applicationCode,
-            String interfaceCode,
+            List<String> interfaceCodes,
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime
     ) {
@@ -342,9 +338,9 @@ public class LogRepository {
         params.addValue("toDateTime", toDateTime);
         params.addValue("searchValue", searchValue);
 
-        if (StringUtils.hasText(interfaceCode)) {
-            whereClause.append(" AND l.INTERFACE_CODE = :interfaceCode");
-            params.addValue("interfaceCode", interfaceCode);
+        if (interfaceCodes != null && !interfaceCodes.isEmpty()) {
+            whereClause.append(" AND TRIM(l.INTERFACE_CODE) IN (:interfaceCodes)");
+            params.addValue("interfaceCodes", interfaceCodes);
         }
 
         return buildSummary(whereClause.toString(), params);
@@ -400,7 +396,7 @@ public class LogRepository {
         return result != null ? result : 0L;
     }
 
-    private String buildLoggedMessageWhereClause(String interfaceCode, String caseType) {
+    private String buildLoggedMessageWhereClause(List<String> interfaceCodes, String caseType) {
         StringBuilder whereClause = new StringBuilder("""
                 FROM BOVOSB.MWTB_INTERFACE_AUDIT_LOG l
                 WHERE l.APPLICATION_CODE = :applicationCode
@@ -409,8 +405,8 @@ public class LogRepository {
                   AND DBMS_LOB.INSTR(l.LOGGED_MESSAGE, :searchValue) > 0
                 """);
 
-        if (StringUtils.hasText(interfaceCode)) {
-            whereClause.append(" AND l.INTERFACE_CODE = :interfaceCode");
+        if (interfaceCodes != null && !interfaceCodes.isEmpty()) {
+            whereClause.append(" AND TRIM(l.INTERFACE_CODE) IN (:interfaceCodes)");
         }
 
         appendCaseFilter(whereClause, caseType, "l");
@@ -420,7 +416,7 @@ public class LogRepository {
     private MapSqlParameterSource buildLoggedMessageParams(
             String searchValue,
             String applicationCode,
-            String interfaceCode,
+            List<String> interfaceCodes,
             String caseType,
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime
@@ -431,8 +427,8 @@ public class LogRepository {
         params.addValue("toDateTime", toDateTime);
         params.addValue("searchValue", searchValue);
 
-        if (StringUtils.hasText(interfaceCode)) {
-            params.addValue("interfaceCode", interfaceCode);
+        if (interfaceCodes != null && !interfaceCodes.isEmpty()) {
+            params.addValue("interfaceCodes", interfaceCodes);
         }
 
         return params;
@@ -442,7 +438,7 @@ public class LogRepository {
             StringBuilder whereClause,
             MapSqlParameterSource params,
             String applicationCode,
-            String interfaceCode,
+            List<String> interfaceCodes,
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime,
             String alias
@@ -454,9 +450,9 @@ public class LogRepository {
             params.addValue("applicationCode", applicationCode);
         }
 
-        if (StringUtils.hasText(interfaceCode)) {
-            whereClause.append(" AND ").append(prefix).append("INTERFACE_CODE = :interfaceCode");
-            params.addValue("interfaceCode", interfaceCode);
+        if (interfaceCodes != null && !interfaceCodes.isEmpty()) {
+            whereClause.append(" AND TRIM(").append(prefix).append("INTERFACE_CODE) IN (:interfaceCodes)");
+            params.addValue("interfaceCodes", interfaceCodes);
         }
 
         if (fromDateTime != null) {
@@ -495,6 +491,7 @@ public class LogRepository {
 
     public PagedResponse<InterfaceStatsRecord> getInterfaceStats(
             String applicationCode,
+            List<String> interfaceCodes,
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime,
             int page,
@@ -507,7 +504,7 @@ public class LogRepository {
                 """);
 
         MapSqlParameterSource params = new MapSqlParameterSource();
-        appendBaseFilters(filters, params, applicationCode, null, fromDateTime, toDateTime, "l");
+        appendBaseFilters(filters, params, applicationCode, interfaceCodes, fromDateTime, toDateTime, "l");
 
         String sql = """
                 WITH tx_spans AS (
@@ -667,14 +664,14 @@ public class LogRepository {
 
         return r;
     }
-    
+
     public List<DurationBucketRecord> getAvgDurationByBucket(
-            String interfaceCode,
+            List<String> interfaceCodes,
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime,
             int bucketMinutes
     ) {
-        String sql = """
+        StringBuilder sql = new StringBuilder("""
                 WITH tx_spans AS (
                     SELECT
                         TRIM(l.INTERFACE_CODE) AS interface_code,
@@ -682,10 +679,22 @@ public class LogRepository {
                         MIN(l.LOGTIME) AS first_log_time,
                         MAX(l.LOGTIME) AS last_log_time
                     FROM BOVOSB.VW_IF_AU_SUCCESS_LOG l
-                    WHERE l.INTERFACE_CODE = :interfaceCode
-                      AND l.LOGTIME >= :fromDateTime
+                    WHERE l.LOGTIME >= :fromDateTime
                       AND l.LOGTIME <= :toDateTime
                       AND l.TRANSACTION_ID IS NOT NULL
+                """);
+
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("fromDateTime", fromDateTime);
+        params.addValue("toDateTime", toDateTime);
+        params.addValue("bucketMinutes", bucketMinutes);
+
+        if (interfaceCodes != null && !interfaceCodes.isEmpty()) {
+            sql.append(" AND TRIM(l.INTERFACE_CODE) IN (:interfaceCodes)\n");
+            params.addValue("interfaceCodes", interfaceCodes);
+        }
+
+        sql.append("""
                     GROUP BY TRIM(l.INTERFACE_CODE), TRIM(l.TRANSACTION_ID)
                     HAVING COUNT(*) > 1
                        AND MIN(l.LOGTIME) < MAX(l.LOGTIME)
@@ -721,15 +730,9 @@ public class LogRepository {
                 WHERE duration_millis > 0
                 GROUP BY bucket_start
                 ORDER BY bucket_start
-                """;
+                """);
 
-        MapSqlParameterSource params = new MapSqlParameterSource();
-        params.addValue("interfaceCode", interfaceCode);
-        params.addValue("fromDateTime", fromDateTime);
-        params.addValue("toDateTime", toDateTime);
-        params.addValue("bucketMinutes", bucketMinutes);
-
-        return jdbcTemplate.query(sql, params, (rs, rowNum) -> {
+        return jdbcTemplate.query(sql.toString(), params, (rs, rowNum) -> {
             DurationBucketRecord r = new DurationBucketRecord();
             Timestamp startTs = rs.getTimestamp("bucket_start");
             Timestamp endTs = rs.getTimestamp("bucket_end");

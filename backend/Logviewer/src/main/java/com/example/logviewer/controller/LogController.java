@@ -46,7 +46,7 @@ public class LogController {
             @RequestParam(required = false) SearchBy searchBy,
             @RequestParam(required = false) String searchValue,
             @RequestParam(required = false) String applicationCode,
-            @RequestParam(required = false) String interfaceCode,
+            @RequestParam(required = false) List<String> interfaceCodes,
             @RequestParam(required = false) String caseType,
             @RequestParam(required = false)
             @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime fromDateTime,
@@ -59,7 +59,7 @@ public class LogController {
                 searchBy,
                 searchValue,
                 applicationCode,
-                interfaceCode,
+                interfaceCodes,
                 caseType,
                 fromDateTime,
                 toDateTime,
@@ -71,6 +71,7 @@ public class LogController {
     @GetMapping("/interface-stats")
     public CompletableFuture<PagedResponse<InterfaceStatsRecord>> getInterfaceStats(
             @RequestParam(required = false) String applicationCode,
+            @RequestParam(required = false) List<String> interfaceCodes,
             @RequestParam(required = false)
             @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime fromDateTime,
             @RequestParam(required = false)
@@ -78,13 +79,13 @@ public class LogController {
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(defaultValue = "10") int size
     ) {
-        return logService.getInterfaceStatsAsync(applicationCode, fromDateTime, toDateTime, page, size);
+        return logService.getInterfaceStatsAsync(applicationCode, interfaceCodes, fromDateTime, toDateTime, page, size);
     }
 
     @GetMapping("/durations")
     public CompletableFuture<PagedResponse<TransactionDurationRecord>> getTransactionDurations(
             @RequestParam(required = false) String applicationCode,
-            @RequestParam(required = false) String interfaceCode,
+            @RequestParam(required = false) List<String> interfaceCodes,
             @RequestParam(required = false)
             @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime fromDateTime,
             @RequestParam(required = false)
@@ -94,23 +95,23 @@ public class LogController {
     ) {
         return logService.getTransactionDurationsAsync(
                 applicationCode,
-                interfaceCode,
+                interfaceCodes,
                 fromDateTime,
                 toDateTime,
                 page,
                 size
         );
     }
-    
+
     @GetMapping("/interface-duration-buckets")
     public List<DurationBucketRecord> getInterfaceDurationBuckets(
-            @RequestParam String interfaceCode,
+            @RequestParam List<String> interfaceCodes,
             @RequestParam
             @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime fromDateTime,
             @RequestParam
             @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime toDateTime,
             @RequestParam String bucket
     ) {
-        return logService.getInterfaceDurationBuckets(interfaceCode, fromDateTime, toDateTime, bucket);
+        return logService.getInterfaceDurationBuckets(interfaceCodes, fromDateTime, toDateTime, bucket);
     }
 }
