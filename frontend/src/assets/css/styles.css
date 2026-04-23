@@ -926,3 +926,49 @@ body {
   font-size: 12px;
   opacity: 0.8;
 }
+
+
+/* vertical scroll. */
+/* Keep Tom Select multi-select from expanding too much */
+/* Limit Tom Select multi-value height */
+/* .ts-control {
+  max-height: 40px;       
+  overflow-y: auto;
+  align-items: flex-start; 
+}
+
+.ts-control::-webkit-scrollbar {
+  width: 6px;
+}
+.ts-control::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 6px;
+} */
+
+
+/* Force Tom Select to stay in ONE line */
+.ts-control {
+  display: flex;
+  flex-wrap: nowrap;      /* 🚫 no wrapping */
+  overflow-x: auto;       /* 👉 horizontal scroll */
+  overflow-y: hidden;
+  white-space: nowrap;
+  max-height: 46px;       /* match input height */
+  align-items: center;
+}
+
+
+
+/* Keep chips from shrinking */
+.ts-control .item {
+  flex: 0 0 auto;
+}
+
+/* Optional: smoother scroll look */
+.ts-control::-webkit-scrollbar {
+  height: 6px;
+}
+.ts-control::-webkit-scrollbar-thumb {
+  background: #c1c1c1;
+  border-radius: 6px;
+}

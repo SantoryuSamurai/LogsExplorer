@@ -57,8 +57,12 @@ function buildLogsUrl(filters = {}, page = 1, size = 10, mode = "EXPLORER") {
     params.set("applicationCode", filters.applicationCode.trim());
   }
 
-  if (filters.interfaceCode) {
-    params.set("interfaceCode", filters.interfaceCode.trim());
+  if (Array.isArray(filters.interfaceCodes) && filters.interfaceCodes.length) {
+    filters.interfaceCodes.forEach((code) => {
+      if (code) {
+        params.append("interfaceCodes", code.trim());
+      }
+    });
   }
 
   if (filters.fromDateTime) {
@@ -118,12 +122,13 @@ async function fetchLogs(filters = {}, page = 1, size = 10, mode = "EXPLORER") {
 async function fetchChartData(interfaceCode, from, to, bucket) {
   if (!interfaceCode || !from || !to) return [];
 
-  const params = new URLSearchParams({
-    interfaceCode,
-    fromDateTime: normalizeDateTime(from),
-    toDateTime: normalizeDateTime(to),
-    bucket
-  });
+  const params = new URLSearchParams();
+
+  params.append("interfaceCodes", interfaceCode); // ✅ FIX
+
+  params.append("fromDateTime", normalizeDateTime(from));
+  params.append("toDateTime", normalizeDateTime(to));
+  params.append("bucket", bucket);
 
   const url = `${API_BASE_URL}/interface-duration-buckets?${params.toString()}`;
   console.log("Chart API URL:", url);
@@ -135,11 +140,10 @@ async function fetchChartData(interfaceCode, from, to, bucket) {
     const result = await response.json();
 
     // Transform backend → chart format
-    return result.map(item => ({
+    return result.map((item) => ({
       time: `${item.bucketStart.replace("T", " ")} → ${item.bucketEnd.replace("T", " ")}`,
-      avgDuration: item.avgDurationMillis
+      avgDuration: item.avgDurationMillis,
     }));
-
   } catch (e) {
     console.error("Chart fetch error:", e);
     return [];

@@ -1,6 +1,6 @@
 let appliedFilters = {
   applicationCode: "",
-  interfaceCode: "",
+  interfaceCodes: [],
   fromDateTime: "",
   toDateTime: "",
   searchBy: "",
@@ -48,7 +48,7 @@ document.querySelectorAll("#logTabs button").forEach((button) => {
     clearFilters();
     appliedFilters = {
       applicationCode: "",
-      interfaceCode: "",
+      interfaceCodes: [],
       fromDateTime: "",
       toDateTime: "",
       searchBy: "",
@@ -122,7 +122,13 @@ function getFilterValues() {
 
   return {
     applicationCode: (appSelect?.getValue?.() || "").trim(),
-    interfaceCode: (ifaceSelect?.getValue?.() || "").trim(),
+    interfaceCodes: (() => {
+      const value = ifaceSelect?.getValue?.();
+      if (!value) return [];
+      return Array.isArray(value)
+        ? value.map((v) => v.trim()).filter(Boolean)
+        : [value.trim()];
+    })(),
     fromDateTime: document.getElementById("dateFrom")?.value || "",
     toDateTime: document.getElementById("dateTo")?.value || "",
     searchBy,
@@ -133,7 +139,7 @@ function getFilterValues() {
 function hasRequiredFilters(filters) {
   return Boolean(
     (filters.applicationCode || "").trim() ||
-    (filters.interfaceCode || "").trim() ||
+    (filters.interfaceCodes || []).length > 0 ||
     (filters.fromDateTime || "").trim() ||
     (filters.toDateTime || "").trim() ||
     (filters.searchValue || "").trim(),
@@ -161,24 +167,32 @@ function validateSearchFilters(filters) {
 function updateSearchableSelect(
   instance,
   items,
-  preserveValue = "",
-  defaultLabel = "All",
+  preserveValues = [],
+  defaultLabel = "All"
 ) {
   if (!instance) return;
+
+  const values = Array.isArray(preserveValues)
+    ? preserveValues
+    : preserveValues
+      ? [preserveValues]
+      : [];
 
   instance.clearOptions();
   instance.addOption({ value: "", text: defaultLabel });
 
-  items.forEach((item) => {
+  items.forEach(item => {
     instance.addOption({ value: item, text: item });
   });
 
   instance.refreshOptions(false);
 
-  if (preserveValue && items.includes(preserveValue)) {
-    instance.setValue(preserveValue, true);
+  const valid = values.filter(v => items.includes(v));
+
+  if (valid.length > 0) {
+    instance.setValue(valid, true);
   } else {
-    instance.setValue("", true);
+    instance.setValue([], true);
   }
 }
 
@@ -196,26 +210,25 @@ async function loadApplications() {
   );
 }
 
-async function loadInterfaces(
-  applicationCode = "",
-  preserveSelectedInterface = "",
-) {
+async function loadInterfaces(applicationCode = "", preserveValues = []) {
   const interfaces = await fetchInterfaceCodes(applicationCode);
-  const sortedInterfaces = Array.isArray(interfaces)
+
+  const sorted = Array.isArray(interfaces)
     ? [...interfaces].sort((a, b) => a.localeCompare(b))
     : [];
+
   updateSearchableSelect(
     ifaceSelect,
-    sortedInterfaces,
-    preserveSelectedInterface,
-    "All Interfaces",
+    sorted,
+    preserveValues,
+    "All Interfaces"
   );
 }
 
 function clearFilters() {
   document.getElementById("filterForm")?.reset();
   appSelect?.setValue("", true);
-  ifaceSelect?.setValue("", true);
+  ifaceSelect?.setValue([], true);
   setSearchTypeValue("transactionId");
 
   const dateFrom = document.getElementById("dateFrom");
@@ -428,6 +441,9 @@ document.addEventListener("DOMContentLoaded", async () => {
     create: false,
     placeholder: "All Interfaces",
     allowEmptyOption: true,
+    maxItems: null, // 🔥 allow multiple
+    closeAfterSelect: false, // keep dropdown open
+    plugins: ["remove_button"], // show X on chips
   });
 
   searchTypeSelect = new TomSelect("#searchType", {
@@ -449,8 +465,8 @@ document.addEventListener("DOMContentLoaded", async () => {
   resetTableState();
 
   appSelect.on("change", async (value) => {
-    const currentInterface = ifaceSelect?.getValue?.() || "";
-    await loadInterfaces(value, currentInterface);
+    const currentInterfaces = ifaceSelect?.getValue?.() || [];
+    await loadInterfaces(value, currentInterfaces);
   });
 
   document.getElementById("submitBtn").addEventListener("click", async (e) => {
@@ -475,7 +491,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     // document.getElementById("summaryDisplay").style.display = "none";
     appliedFilters = {
       applicationCode: "",
-      interfaceCode: "",
+      interfaceCodes: [],
       fromDateTime: "",
       toDateTime: "",
       searchBy: "",
@@ -558,74 +574,74 @@ document.addEventListener("DOMContentLoaded", async () => {
     .addEventListener("click", refreshTrendChart);
 
   async function refreshTrendChart() {
-  const from = document.getElementById("chartDateFrom").value;
-  const to = document.getElementById("chartDateTo").value;
-  const interval = document.getElementById("chartInterval").value;
+    const from = document.getElementById("chartDateFrom").value;
+    const to = document.getElementById("chartDateTo").value;
+    const interval = document.getElementById("chartInterval").value;
 
-  const messageEl = document.getElementById("chartStateMessage");
-  const titleEl = document.getElementById("chartStateTitle");
-  const subEl = document.getElementById("chartStateSub");
-  const canvas = document.getElementById("interfaceChart");
+    const messageEl = document.getElementById("chartStateMessage");
+    const titleEl = document.getElementById("chartStateTitle");
+    const subEl = document.getElementById("chartStateSub");
+    const canvas = document.getElementById("interfaceChart");
 
-  if (!messageEl || !canvas) return;
+    if (!messageEl || !canvas) return;
 
-  const showState = (title, subText = "", iconClass = "") => {
-    if (titleEl) titleEl.textContent = title;
-    if (subEl) subEl.textContent = subText;
+    const showState = (title, subText = "", iconClass = "") => {
+      if (titleEl) titleEl.textContent = title;
+      if (subEl) subEl.textContent = subText;
 
-    messageEl.style.display = "flex";
+      messageEl.style.display = "flex";
 
-    const iconEl = messageEl.querySelector("i");
-    if (iconEl && iconClass) {
-      iconEl.className = iconClass;
-    }
+      const iconEl = messageEl.querySelector("i");
+      if (iconEl && iconClass) {
+        iconEl.className = iconClass;
+      }
 
-    canvas.style.display = "none";
-  };
+      canvas.style.display = "none";
+    };
 
-  showState("Loading chart...", "");
+    showState("Loading chart...", "");
 
-  let bucket;
-  if (interval === "10min") bucket = "10mins";
-  else if (interval === "1hr") bucket = "1hr";
-  else if (interval === "2hr") bucket = "2hr";
+    let bucket;
+    if (interval === "10min") bucket = "10mins";
+    else if (interval === "1hr") bucket = "1hr";
+    else if (interval === "2hr") bucket = "2hr";
 
-  try {
-    const data = await fetchChartData(activeTrendInterface, from, to, bucket);
+    try {
+      const data = await fetchChartData(activeTrendInterface, from, to, bucket);
 
-    if (!data || data.length === 0) {
+      if (!data || data.length === 0) {
+        if (trendChart) {
+          trendChart.destroy();
+          trendChart = null;
+        }
+
+        showState(
+          "No data available",
+          "Try adjusting the time range",
+          "bi bi-graph-down fs-1",
+        );
+        return;
+      }
+
+      messageEl.style.display = "none";
+      canvas.style.display = "block";
+
+      renderTrendChart(data);
+    } catch (e) {
+      console.error(e);
+
       if (trendChart) {
         trendChart.destroy();
         trendChart = null;
       }
 
       showState(
-        "No data available",
-        "Try adjusting the time range",
-        "bi bi-graph-down fs-1"
+        "Failed to load chart",
+        "Please try again",
+        "bi bi-exclamation-triangle fs-1",
       );
-      return;
     }
-
-    messageEl.style.display = "none";
-    canvas.style.display = "block";
-
-    renderTrendChart(data);
-  } catch (e) {
-    console.error(e);
-
-    if (trendChart) {
-      trendChart.destroy();
-      trendChart = null;
-    }
-
-    showState(
-      "Failed to load chart",
-      "Please try again",
-      "bi bi-exclamation-triangle fs-1"
-    );
   }
-}
 
   function renderTrendChart(data) {
     const ctx = document.getElementById("interfaceChart").getContext("2d");
@@ -664,17 +680,17 @@ document.addEventListener("DOMContentLoaded", async () => {
             title: { display: true, text: "Avg Duration (ms)" },
           },
           x: {
-           ticks: {
-    autoSkip: true,
-    // maxTicksLimit: 8,
-    minRotation: 45,
-    maxRotation: 45,
-    callback: function (value, index) {
-      const label = this.getLabelForValue(value);
-      // show only "MM-DD HH:mm"
-      return label ? label.slice(5, 16).replace("T", " ") : label;
-    }
-  },
+            ticks: {
+              autoSkip: true,
+              // maxTicksLimit: 8,
+              minRotation: 45,
+              maxRotation: 45,
+              callback: function (value, index) {
+                const label = this.getLabelForValue(value);
+                // show only "MM-DD HH:mm"
+                return label ? label.slice(5, 16).replace("T", " ") : label;
+              },
+            },
           },
         },
         plugins: {
