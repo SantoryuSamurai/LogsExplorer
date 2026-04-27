@@ -62,7 +62,11 @@
                   <label class="section-label" for="interfaceName"
                     >Interface Code</label
                   >
-                  <select id="interfaceName" class="form-select" multiple></select>
+                  <select
+                    id="interfaceName"
+                    class="form-select"
+                    multiple
+                  ></select>
                 </div>
 
                 <div class="col-12 col-lg-6">
@@ -154,7 +158,7 @@
             </form>
           </section>
 
-          <ul class="nav nav-tabs mt-3 border-0" id="logTabs" role="tablist">
+          <!-- <ul class="nav nav-tabs mt-3 border-0" id="logTabs" role="tablist">
             <li class="nav-item" role="presentation">
               <button
                 class="nav-link active fw-bold"
@@ -191,7 +195,54 @@
                 Min Max
               </button>
             </li>
-          </ul>
+          </ul> -->
+
+          <div class="d-flex justify-content-between align-items-center mb-3">
+            <ul class="nav nav-tabs border-0 mt-3" id="logTabs" role="tablist">
+              <li class="nav-item">
+                <button
+                  class="nav-link active fw-bold"
+                  data-bs-toggle="tab"
+                  data-bs-target="#explorerTab"
+                  type="button"
+                  data-type="EXPLORER"
+                >
+                  Log Explorer
+                </button>
+              </li>
+              <li class="nav-item">
+                <button
+                  class="nav-link fw-bold"
+                  data-bs-toggle="tab"
+                  data-bs-target="#durationTab"
+                  type="button"
+                  data-type="DURATION"
+                >
+                  Transaction Durations
+                </button>
+              </li>
+              <li class="nav-item">
+                <button
+                  class="nav-link fw-bold"
+                  data-bs-toggle="tab"
+                  data-bs-target="#minmaxTab"
+                  type="button"
+                  data-type="MINMAX"
+                >
+                  Min Max
+                </button>
+              </li>
+            </ul>
+            <div id="exportContainer" class="pe-3 mt-3">
+              <button
+                id="exportExcelBtn"
+                class="btn btn-outline-success btn-sm d-flex align-items-center gap-2 py-2 export"
+                title="Export to Excel"
+              >
+                <i class="bi bi-file-earmark-excel"></i> Export
+              </button>
+            </div>
+          </div>
 
           <section class="table-wrap mt-3">
             <div id="tableLoader" class="table-loader-overlay">
@@ -253,7 +304,7 @@
     <div class="modal fade" id="chartModal" tabindex="-1" aria-hidden="true">
       <div class="modal-dialog modal-xl modal-dialog-centered">
         <div class="modal-content">
-          <div class="modal-header border-0 pb-0">
+          <div class="modal-header border-0">
             <h5 class="modal-title fw-bold">
               Performance Trend:
               <span id="chartInterfaceTitle" class="text-primary"></span>

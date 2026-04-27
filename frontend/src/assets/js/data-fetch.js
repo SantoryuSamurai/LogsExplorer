@@ -139,13 +139,48 @@ async function fetchChartData(interfaceCode, from, to, bucket) {
 
     const result = await response.json();
 
+    return result;
     // Transform backend → chart format
-    return result.map((item) => ({
-      time: `${item.bucketStart.replace("T", " ")} → ${item.bucketEnd.replace("T", " ")}`,
-      avgDuration: item.avgDurationMillis,
-    }));
+    // return result.map((item) => ({
+    //   time: `${item.bucketStart.replace("T", " ")} → ${item.bucketEnd.replace("T", " ")}`,
+    //   avgDuration: item.avgDurationMillis,
+    // }));
   } catch (e) {
     console.error("Chart fetch error:", e);
     return [];
   }
+}
+
+// Add this function to data-fetch.js
+async function exportToExcel(filters = {}) {
+  // Date validation: Compulsory
+  if (!filters.fromDateTime || !filters.toDateTime) {
+    alert("Date range (From and To) is compulsory for export.");
+    return;
+  }
+
+  const params = new URLSearchParams();
+
+  // Compulsory dates
+  params.append("fromDateTime", normalizeDateTime(filters.fromDateTime));
+  params.append("toDateTime", normalizeDateTime(filters.toDateTime));
+
+  // Optional filters
+  if (filters.applicationCode) {
+    params.set("applicationCode", filters.applicationCode);
+  }
+
+  if (filters.interfaceCodes && filters.interfaceCodes.length > 0) {
+    params.set("interfaceCodes", filters.interfaceCodes.join(","));
+  }
+
+  // Future-proofing: transactionId (searchBy/searchValue)
+  if (filters.searchBy === "transactionId" && filters.searchValue) {
+    params.set("transactionId", filters.searchValue);
+  }
+
+  const url = `${API_BASE_URL}/export?${params.toString()}`;
+
+  // Trigger download
+  window.location.href = url;
 }

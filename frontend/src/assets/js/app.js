@@ -34,6 +34,13 @@ document.querySelectorAll("#logTabs button").forEach((button) => {
     activeTab = e.target.getAttribute("data-type");
     currentPage = 1;
 
+    const exportContainer = document.getElementById("exportContainer");
+    if (activeTab === "EXPLORER") {
+      exportContainer.style.display = "flex";
+    } else {
+      exportContainer.style.display = "none";
+    }
+
     syncTableViewClass(activeTab);
 
     initLogsTable([], activeTab);
@@ -168,7 +175,7 @@ function updateSearchableSelect(
   instance,
   items,
   preserveValues = [],
-  defaultLabel = "All"
+  defaultLabel = "All",
 ) {
   if (!instance) return;
 
@@ -181,13 +188,13 @@ function updateSearchableSelect(
   instance.clearOptions();
   instance.addOption({ value: "", text: defaultLabel });
 
-  items.forEach(item => {
+  items.forEach((item) => {
     instance.addOption({ value: item, text: item });
   });
 
   instance.refreshOptions(false);
 
-  const valid = values.filter(v => items.includes(v));
+  const valid = values.filter((v) => items.includes(v));
 
   if (valid.length > 0) {
     instance.setValue(valid, true);
@@ -217,12 +224,7 @@ async function loadInterfaces(applicationCode = "", preserveValues = []) {
     ? [...interfaces].sort((a, b) => a.localeCompare(b))
     : [];
 
-  updateSearchableSelect(
-    ifaceSelect,
-    sorted,
-    preserveValues,
-    "All Interfaces"
-  );
+  updateSearchableSelect(ifaceSelect, sorted, preserveValues, "All Interfaces");
 }
 
 function clearFilters() {
@@ -387,7 +389,8 @@ async function renderCurrentPage() {
 
     initLogsTable(tableData, activeTab);
 
-    const showSummary = activeTab === "EXPLORER";
+    const showSummary =
+      activeTab === "EXPLORER" && appliedFilters.searchBy !== "LOGGED_MESSAGE";
 
     if (showSummary) {
       setSummaryVisible(true);
@@ -626,7 +629,7 @@ document.addEventListener("DOMContentLoaded", async () => {
       messageEl.style.display = "none";
       canvas.style.display = "block";
 
-      renderTrendChart(data);
+      renderTrendChart(data, activeTrendInterface);
     } catch (e) {
       console.error(e);
 
@@ -643,62 +646,106 @@ document.addEventListener("DOMContentLoaded", async () => {
     }
   }
 
-  function renderTrendChart(data) {
+  function renderTrendChart(data, activeTrendInterface) {
     const ctx = document.getElementById("interfaceChart").getContext("2d");
 
     if (trendChart) {
       trendChart.destroy();
     }
 
+    // Map the new API fields
+    const labels = data?.buckets?.map((d) => d.bucketStart);
+    const avgData = data?.buckets?.map((d) => d.avgDurationMillis);
+    const globalMode = data?.modeDurationMillis || 0;
+    const modeData = new Array(labels.length).fill(globalMode);
+
     trendChart = new Chart(ctx, {
       type: "line",
       data: {
-        labels: data.map((d) => d.time),
+        labels: labels,
         datasets: [
           {
-            label: "Avg Duration (ms)",
-            data: data.map((d) => d.avgDuration),
+            label: activeTrendInterface,
+            data: avgData,
             borderColor: "#4f7cff",
             backgroundColor: "rgba(79, 124, 255, 0.1)",
             borderWidth: 2,
             fill: true,
-            tension: 0,
             pointRadius: 4,
-            pointHoverRadius: 6,
             pointBackgroundColor: "#4f7cff",
             pointBorderColor: "#4f7cff",
             pointBorderWidth: 1,
+          },
+          {
+            label: `Mode (${globalMode} ms)`,
+            data: modeData,
+            borderColor: "#2ecc71", // Green for Mode
+            borderWidth: 2,
+            // borderDash: [10, 5], // Makes the straight line dashed
+            fill: false,
+            pointRadius: 0, // Hide points for the mode line
+            pointHitRadius: 0, // Disable hover for the mode line
+            stepped: false,
           },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
-        scales: {
-          y: {
-            beginAtZero: true,
-            title: { display: true, text: "Avg Duration (ms)" },
-          },
-          x: {
-            ticks: {
-              autoSkip: true,
-              // maxTicksLimit: 8,
-              minRotation: 45,
-              maxRotation: 45,
-              callback: function (value, index) {
-                const label = this.getLabelForValue(value);
-                // show only "MM-DD HH:mm"
-                return label ? label.slice(5, 16).replace("T", " ") : label;
+        plugins: {
+          legend: { position: "top" },
+          tooltip: {
+            mode: "index",
+            intersect: false,
+            callbacks: {
+              // This adds the Transaction Count to the hover tooltip
+              afterBody: function (context) {
+                const index = context[0].dataIndex;
+                const txCount = data?.buckets[index]?.transactionCount;
+                return `Transactions: ${txCount}`;
+              },
+              label: function (context) {
+                let label = context.dataset.label || "";
+                if (label) {
+                  label += ": ";
+                }
+                if (context.parsed.y !== null) {
+                  label += context.parsed.y + " ms";
+                }
+                return label;
               },
             },
           },
         },
-        plugins: {
-          legend: { position: "top" },
+        scales: {
+          y: {
+            beginAtZero: true,
+            title: { display: true, text: "Duration (ms)" },
+          },
+          x: {
+            ticks: {
+              autoSkip: true,
+              maxRotation: 45,
+              minRotation: 45,
+              callback: function (value, index) {
+                const label = this.getLabelForValue(value);
+                // Formats "2026-03-03T13:40:00" to "03-03 13:40"
+                return label ? label.slice(5, 16).replace("T", " ") : label;
+              },
+            },
+            title: { display: true, text: "Time" },
+          },
         },
       },
     });
   }
+
+  const exportBtn = document.getElementById("exportExcelBtn");
+
+  exportBtn.addEventListener("click", async () => {
+    // We use the currently applied filters
+    await exportToExcel(appliedFilters);
+  });
 });
 
 async function triggerCaseFilter(type) {
