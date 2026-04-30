@@ -653,11 +653,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       trendChart.destroy();
     }
 
-    // Map the new API fields
-    const labels = data?.buckets?.map((d) => d.bucketStart);
+    // Map the new API fields →
+    const labels = data?.buckets?.map(
+      (d) => `${d.bucketStart} → ${d.bucketEnd}`,
+    );
     const avgData = data?.buckets?.map((d) => d.avgDurationMillis);
     const globalMode = data?.modeDurationMillis || 0;
     const modeData = new Array(labels.length).fill(globalMode);
+    const intervalData = data?.buckets?.map((d) => d.modeDurationMillis);
 
     trendChart = new Chart(ctx, {
       type: "line",
@@ -672,6 +675,7 @@ document.addEventListener("DOMContentLoaded", async () => {
             borderWidth: 2,
             fill: true,
             pointRadius: 4,
+            pointHoverRadius: 6,
             pointBackgroundColor: "#4f7cff",
             pointBorderColor: "#4f7cff",
             pointBorderWidth: 1,
@@ -687,16 +691,28 @@ document.addEventListener("DOMContentLoaded", async () => {
             pointHitRadius: 0, // Disable hover for the mode line
             stepped: false,
           },
+          {
+            label: `Interval Mode ms`,
+            data: intervalData,
+            borderColor: "#cc8d2e", // Orange for Mode
+            borderWidth: 2,
+            // borderDash: [10, 5], // Makes the straight line dashed
+            borderWidth: 2,
+            pointRadius: 4,
+            pointHoverRadius: 6,
+            pointBackgroundColor: "#cc8d2e",
+            pointBorderColor: "#cc8d2e",
+            pointBorderWidth: 1,
+          },
         ],
       },
       options: {
         responsive: true,
         maintainAspectRatio: false,
         plugins: {
-          legend: { position: "top" },
           tooltip: {
             mode: "index",
-            intersect: false,
+            // intersect: false,
             callbacks: {
               // This adds the Transaction Count to the hover tooltip
               afterBody: function (context) {
@@ -716,11 +732,12 @@ document.addEventListener("DOMContentLoaded", async () => {
               },
             },
           },
+          legend: { position: "top" },
         },
         scales: {
           y: {
             beginAtZero: true,
-            title: { display: true, text: "Duration (ms)" },
+            title: { display: true, text: "Avg Duration (ms)" },
           },
           x: {
             ticks: {
