@@ -154,18 +154,26 @@ function hasRequiredFilters(filters) {
 }
 
 function validateSearchFilters(filters) {
+  const from = (filters.fromDateTime || "").trim();
+  const to = (filters.toDateTime || "").trim();
+
   if (filters.searchBy === "LOGGED_MESSAGE") {
     if (!filters.applicationCode) {
       alert("Application Code is required for Logged Message search.");
       return false;
     }
 
-    if (!filters.fromDateTime || !filters.toDateTime) {
+    if (!from || !to) {
       alert(
         "Both From Date and To Date are required for Logged Message search.",
       );
       return false;
     }
+  }
+
+  if (from && to && new Date(from) > new Date(to)) {
+    alert("From Date cannot be later than To Date.");
+    return false;
   }
 
   return true;
@@ -250,14 +258,17 @@ function applyRecentRange() {
   const mins = parseInt(document.getElementById("recentRange")?.value, 10);
   if (!mins) return;
 
+  const dateFrom = document.getElementById("dateFrom");
+  const dateTo = document.getElementById("dateTo");
+
   const end = new Date();
   const start = new Date(end.getTime() - mins * 60000);
   const pad = (n) => String(n).padStart(2, "0");
   const format = (d) =>
     `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
-  document.getElementById("dateFrom").value = format(start);
-  document.getElementById("dateTo").value = format(end);
+  if (dateFrom) dateFrom.value = format(start);
+  if (dateTo) dateTo.value = format(end);
 }
 
 function ensurePageSizeControl() {
@@ -526,12 +537,27 @@ document.addEventListener("DOMContentLoaded", async () => {
     applyRecentRange();
   });
 
-  document.getElementById("dateFrom").addEventListener("change", () => {
-    document.getElementById("recentRange").value = "";
+  document.getElementById("dateFrom").addEventListener("change", (e) => {
+    const fromValue = e.target.value;
+    const toInput = document.getElementById("dateTo");
+    const recentRange = document.getElementById("recentRange");
+
+    // Clear recent if manual input
+    if (fromValue) recentRange.value = "";
+
+    // Restrict To date
+    toInput.min = fromValue;
   });
 
-  document.getElementById("dateTo").addEventListener("change", () => {
-    document.getElementById("recentRange").value = "";
+  document.getElementById("dateTo").addEventListener("change", (e) => {
+    const toValue = e.target.value;
+    const fromInput = document.getElementById("dateFrom");
+    const recentRange = document.getElementById("recentRange");
+
+    if (toValue) recentRange.value = "";
+
+    // Restrict From date
+    fromInput.max = toValue;
   });
 
   const successPill = document
