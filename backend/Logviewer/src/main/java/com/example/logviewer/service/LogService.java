@@ -1,19 +1,13 @@
 package com.example.logviewer.service;
 
-import com.example.logviewer.model.DurationBucketRecord;
-import com.example.logviewer.model.InterfaceStatsRecord;
-import com.example.logviewer.model.LogRecord;
-import com.example.logviewer.model.LogSearchResponse;
-import com.example.logviewer.model.LogSummary;
-import com.example.logviewer.model.PagedResponse;
-import com.example.logviewer.model.SearchBy;
-import com.example.logviewer.model.TransactionDurationRecord;
+import com.example.logviewer.exception.BadRequestException;
+import com.example.logviewer.exception.NotFoundException;
+import com.example.logviewer.model.*;
 import com.example.logviewer.repository.LogRepository;
+
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
-import org.springframework.web.server.ResponseStatusException;
 
 import java.time.LocalDateTime;
 import java.util.List;
@@ -32,20 +26,33 @@ public class LogService {
         this.logQueryExecutor = logQueryExecutor;
     }
 
+    // -------------------- BASIC APIs --------------------
+
     public List<String> getAllApplicationCodes() {
         return logRepository.getAllApplicationCodes();
     }
 
     public List<String> getInterfaceCodesByApplication(String applicationCode) {
         if (!StringUtils.hasText(applicationCode)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "applicationCode is required");
+            throw new BadRequestException("applicationCode is required");
         }
-        return logRepository.getInterfaceCodesByApplication(applicationCode.trim());
+
+        String app = applicationCode.trim();
+
+        List<String> result = logRepository.getInterfaceCodesByApplication(app);
+
+        if (result.isEmpty()) {
+            throw new NotFoundException("No interface codes found for application: " + app);
+        }
+
+        return result;
     }
 
     public List<String> getAllInterfaceCodes() {
         return logRepository.getAllInterfaceCodes();
     }
+
+    // -------------------- MAIN SEARCH --------------------
 
     public CompletableFuture<LogSearchResponse<LogRecord>> searchLogsAsync(
             SearchBy searchBy,
@@ -61,7 +68,7 @@ public class LogService {
         validatePaging(page, size);
 
         if (fromDateTime != null && toDateTime != null && fromDateTime.isAfter(toDateTime)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromDateTime must be before toDateTime");
+            throw new BadRequestException("fromDateTime must be before toDateTime");
         }
 
         List<String> normalizedInterfaceCodes = normalizeCodes(interfaceCodes);
@@ -71,51 +78,57 @@ public class LogService {
         CompletableFuture<LogSummary> summaryFuture;
 
         if (searchBy == SearchBy.TRANSACTION_ID) {
+
             if (!StringUtils.hasText(searchValue)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "searchValue is required for TRANSACTION_ID");
+                throw new BadRequestException("searchValue is required for TRANSACTION_ID");
             }
 
             String txId = searchValue.trim();
 
-            pageFuture = CompletableFuture.completedFuture(
-                    logRepository.searchByTransactionId(
-                            txId,
-                            StringUtils.hasText(applicationCode) ? applicationCode.trim() : null,
-                            normalizedInterfaceCodes,
-                            normalizedCaseType,
-                            fromDateTime,
-                            toDateTime,
-                            page,
-                            size
+            pageFuture = CompletableFuture
+                    .completedFuture(
+                            logRepository.searchByTransactionId(
+                                    txId,
+                                    trim(applicationCode),
+                                    normalizedInterfaceCodes,
+                                    normalizedCaseType,
+                                    fromDateTime,
+                                    toDateTime,
+                                    page,
+                                    size
+                            )
                     )
-            );
+                    .thenApply(result -> {
+                        if (result.getContent().isEmpty()) {
+                            throw new NotFoundException("Transaction not found: " + txId);
+                        }
+                        return result;
+                    });
 
             summaryFuture = CompletableFuture.supplyAsync(() ->
                     logRepository.getSummaryByTransactionId(
                             txId,
-                            StringUtils.hasText(applicationCode) ? applicationCode.trim() : null,
+                            trim(applicationCode),
                             normalizedInterfaceCodes,
                             fromDateTime,
                             toDateTime
                     ), logQueryExecutor);
 
         } else if (searchBy == SearchBy.LOGGED_MESSAGE) {
+
             if (!StringUtils.hasText(searchValue)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "searchValue is required for LOGGED_MESSAGE");
+                throw new BadRequestException("searchValue is required for LOGGED_MESSAGE");
             }
             if (!StringUtils.hasText(applicationCode)) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "applicationCode is required for LOGGED_MESSAGE");
+                throw new BadRequestException("applicationCode is required for LOGGED_MESSAGE");
             }
             if (fromDateTime == null || toDateTime == null) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromDateTime and toDateTime are required for LOGGED_MESSAGE");
+                throw new BadRequestException("fromDateTime and toDateTime are required for LOGGED_MESSAGE");
             }
 
-            String msg = searchValue.trim();
-            String app = applicationCode.trim();
-
             pageFuture = logRepository.searchByLoggedMessageAsync(
-                    msg,
-                    app,
+                    searchValue.trim(),
+                    applicationCode.trim(),
                     normalizedInterfaceCodes,
                     normalizedCaseType,
                     fromDateTime,
@@ -128,9 +141,11 @@ public class LogService {
             summaryFuture = CompletableFuture.completedFuture(new LogSummary(0, 0, 0));
 
         } else {
+
+            // Generic search → allow empty
             pageFuture = CompletableFuture.completedFuture(
                     logRepository.searchLogs(
-                            StringUtils.hasText(applicationCode) ? applicationCode.trim() : null,
+                            trim(applicationCode),
                             normalizedInterfaceCodes,
                             normalizedCaseType,
                             fromDateTime,
@@ -142,7 +157,7 @@ public class LogService {
 
             summaryFuture = CompletableFuture.supplyAsync(() ->
                     logRepository.getSummaryForLogs(
-                            StringUtils.hasText(applicationCode) ? applicationCode.trim() : null,
+                            trim(applicationCode),
                             normalizedInterfaceCodes,
                             fromDateTime,
                             toDateTime
@@ -151,6 +166,29 @@ public class LogService {
 
         return pageFuture.thenCombine(summaryFuture,
                 (pageResult, summary) -> new LogSearchResponse<>(pageResult, summary));
+    }
+
+    // -------------------- STATS --------------------
+
+    public CompletableFuture<PagedResponse<InterfaceStatsRecord>> getInterfaceStatsAsync(
+            String applicationCode,
+            List<String> interfaceCodes,
+            LocalDateTime fromDateTime,
+            LocalDateTime toDateTime,
+            int page,
+            int size
+    ) {
+        validatePaging(page, size);
+
+        return CompletableFuture.supplyAsync(() ->
+                logRepository.getInterfaceStats(
+                        trim(applicationCode),
+                        normalizeCodes(interfaceCodes),
+                        fromDateTime,
+                        toDateTime,
+                        page,
+                        size
+                ), logQueryExecutor);
     }
 
     public CompletableFuture<PagedResponse<TransactionDurationRecord>> getTransactionDurationsAsync(
@@ -163,13 +201,9 @@ public class LogService {
     ) {
         validatePaging(page, size);
 
-        if (fromDateTime != null && toDateTime != null && fromDateTime.isAfter(toDateTime)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromDateTime must be before toDateTime");
-        }
-
         return CompletableFuture.supplyAsync(() ->
                 logRepository.searchTransactionDurations(
-                        StringUtils.hasText(applicationCode) ? applicationCode.trim() : null,
+                        trim(applicationCode),
                         normalizeCodes(interfaceCodes),
                         fromDateTime,
                         toDateTime,
@@ -178,46 +212,20 @@ public class LogService {
                 ), logQueryExecutor);
     }
 
-    public CompletableFuture<PagedResponse<InterfaceStatsRecord>> getInterfaceStatsAsync(
-            String applicationCode,
-            List<String> interfaceCodes,
-            LocalDateTime fromDateTime,
-            LocalDateTime toDateTime,
-            int page,
-            int size
-    ) {
-        validatePaging(page, size);
-
-        if (fromDateTime != null && toDateTime != null && fromDateTime.isAfter(toDateTime)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromDateTime must be before toDateTime");
-        }
-
-        return CompletableFuture.supplyAsync(() ->
-                logRepository.getInterfaceStats(
-                        StringUtils.hasText(applicationCode) ? applicationCode.trim() : null,
-                        normalizeCodes(interfaceCodes),
-                        fromDateTime,
-                        toDateTime,
-                        page,
-                        size
-                ), logQueryExecutor);
-    }
-
-    public List<DurationBucketRecord> getInterfaceDurationBuckets(
+    public DurationBucketResponse getInterfaceDurationBuckets(
             List<String> interfaceCodes,
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime,
             String bucket
     ) {
         List<String> normalizedInterfaceCodes = normalizeCodes(interfaceCodes);
+
         if (normalizedInterfaceCodes == null || normalizedInterfaceCodes.isEmpty()) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "interfaceCodes is required");
+            throw new BadRequestException("interfaceCodes is required");
         }
+
         if (fromDateTime == null || toDateTime == null) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromDateTime and toDateTime are required");
-        }
-        if (fromDateTime.isAfter(toDateTime)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "fromDateTime must be before toDateTime");
+            throw new BadRequestException("fromDateTime and toDateTime are required");
         }
 
         int bucketMinutes = parseBucketToMinutes(bucket);
@@ -230,36 +238,96 @@ public class LogService {
         );
     }
 
+    // -------------------- EXPORT --------------------
+
+    public List<LogRecord> exportLogs(
+            String applicationCode,
+            List<String> interfaceCodes,
+            LocalDateTime fromDateTime,
+            LocalDateTime toDateTime
+    ) {
+        if (fromDateTime == null || toDateTime == null) {
+            throw new BadRequestException("fromDateTime and toDateTime are mandatory");
+        }
+
+        if (fromDateTime.isAfter(toDateTime)) {
+            throw new BadRequestException("fromDateTime must be before toDateTime");
+        }
+
+        List<LogRecord> logs = logRepository.exportLogs(
+                trim(applicationCode),
+                normalizeCodes(interfaceCodes),
+                fromDateTime,
+                toDateTime
+        );
+
+        if (logs.isEmpty()) {
+            throw new NotFoundException("No logs found for export");
+        }
+
+        return logs;
+    }
+
+    // -------------------- CUSTOM QUERY --------------------
+
+    public CustomQueryResponse executeCustomQuery(String query) {
+
+        if (!StringUtils.hasText(query)) {
+            throw new BadRequestException("Query cannot be empty");
+        }
+
+        String normalized = query.trim().toLowerCase();
+
+        if (!normalized.startsWith("select")) {
+            throw new BadRequestException("Only SELECT queries are allowed");
+        }
+
+        if (normalized.contains(";")) {
+            throw new BadRequestException("Multiple queries not allowed");
+        }
+
+        if (normalized.contains("--")) {
+            throw new BadRequestException("Invalid query");
+        }
+
+        if (normalized.contains("drop") ||
+            normalized.contains("delete") ||
+            normalized.contains("update") ||
+            normalized.contains("insert") ||
+            normalized.contains("truncate")) {
+
+            throw new BadRequestException("Invalid query");
+        }
+
+        if (!normalized.contains("fetch") && !normalized.contains("limit")) {
+            query = query + " FETCH FIRST 100 ROWS ONLY";
+        }
+
+        return logRepository.executeCustomQuery(query);
+    }
+
+    // -------------------- HELPERS --------------------
+
     private void validatePaging(int page, int size) {
-        if (page < 1) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "page must be greater than or equal to 1");
-        }
-        if (size < 1) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "size must be greater than or equal to 1");
-        }
+        if (page < 1) throw new BadRequestException("page must be >= 1");
+        if (size < 1) throw new BadRequestException("size must be >= 1");
     }
 
     private String normalizeCaseType(String caseType) {
-        if (!StringUtils.hasText(caseType)) {
-            return null;
-        }
+        if (!StringUtils.hasText(caseType)) return null;
 
         String value = caseType.trim().toLowerCase();
-        if ("error".equals(value)) {
-            value = "failure";
-        }
+        if ("error".equals(value)) value = "failure";
 
-        if (!"success".equals(value) && !"failure".equals(value)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "caseType must be success or error");
+        if (!value.equals("success") && !value.equals("failure")) {
+            throw new BadRequestException("caseType must be success or error");
         }
 
         return value;
     }
 
     private List<String> normalizeCodes(List<String> codes) {
-        if (codes == null) {
-            return null;
-        }
+        if (codes == null) return null;
 
         return codes.stream()
                 .filter(StringUtils::hasText)
@@ -268,53 +336,22 @@ public class LogService {
                 .toList();
     }
 
+    private String trim(String value) {
+        return StringUtils.hasText(value) ? value.trim() : null;
+    }
+
     private int parseBucketToMinutes(String bucket) {
         if (!StringUtils.hasText(bucket)) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bucket is required");
+            throw new BadRequestException("bucket is required");
         }
 
         String normalized = bucket.trim().toLowerCase().replace(" ", "");
 
-        if (normalized.endsWith("mins")) {
-            String num = normalized.substring(0, normalized.length() - 4);
-            return parsePositiveInt(num, bucket);
-        }
+        if (normalized.endsWith("mins")) return Integer.parseInt(normalized.replace("mins", ""));
+        if (normalized.endsWith("min")) return Integer.parseInt(normalized.replace("min", ""));
+        if (normalized.endsWith("hr")) return Integer.parseInt(normalized.replace("hr", "")) * 60;
+        if (normalized.endsWith("hrs")) return Integer.parseInt(normalized.replace("hrs", "")) * 60;
 
-        if (normalized.endsWith("min")) {
-            String num = normalized.substring(0, normalized.length() - 3);
-            return parsePositiveInt(num, bucket);
-        }
-
-        if (normalized.endsWith("hr")) {
-            String num = normalized.substring(0, normalized.length() - 2);
-            return parsePositiveInt(num, bucket) * 60;
-        }
-
-        if (normalized.endsWith("hrs")) {
-            String num = normalized.substring(0, normalized.length() - 3);
-            return parsePositiveInt(num, bucket) * 60;
-        }
-
-        if (normalized.endsWith("hour")) {
-            String num = normalized.substring(0, normalized.length() - 4);
-            return parsePositiveInt(num, bucket) * 60;
-        }
-
-        throw new ResponseStatusException(
-                HttpStatus.BAD_REQUEST,
-                "bucket must be like 10mins, 1hr, 2hr"
-        );
-    }
-
-    private int parsePositiveInt(String value, String originalBucket) {
-        try {
-            int minutes = Integer.parseInt(value);
-            if (minutes <= 0) {
-                throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "bucket must be greater than 0: " + originalBucket);
-            }
-            return minutes;
-        } catch (NumberFormatException e) {
-            throw new ResponseStatusException(HttpStatus.BAD_REQUEST, "Invalid bucket value: " + originalBucket);
-        }
+        throw new BadRequestException("Invalid bucket format");
     }
 }

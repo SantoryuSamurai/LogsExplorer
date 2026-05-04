@@ -1,6 +1,7 @@
 package com.example.logviewer.repository;
 
 import com.example.logviewer.model.DurationBucketRecord;
+import com.example.logviewer.model.DurationBucketResponse;
 import com.example.logviewer.model.InterfaceStatsRecord;
 import com.example.logviewer.model.LogRecord;
 import com.example.logviewer.model.LogSummary;
@@ -10,6 +11,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
+import java.util.Map;
+import com.example.logviewer.model.CustomQueryResponse;
 
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -665,84 +668,237 @@ public class LogRepository {
         return r;
     }
 
-    public List<DurationBucketRecord> getAvgDurationByBucket(
+public DurationBucketResponse getAvgDurationByBucket(
+        List<String> interfaceCodes,
+        LocalDateTime fromDateTime,
+        LocalDateTime toDateTime,
+        int bucketMinutes
+) {
+    MapSqlParameterSource params = new MapSqlParameterSource();
+    params.addValue("fromDateTime", fromDateTime);
+    params.addValue("toDateTime", toDateTime);
+    params.addValue("bucketMinutes", bucketMinutes);
+
+    StringBuilder baseFilter = new StringBuilder("""
+            FROM BOVOSB.VW_IF_AU_SUCCESS_LOG l
+            WHERE l.LOGTIME >= :fromDateTime
+              AND l.LOGTIME <= :toDateTime
+              AND l.TRANSACTION_ID IS NOT NULL
+            """);
+
+    if (interfaceCodes != null && !interfaceCodes.isEmpty()) {
+        baseFilter.append(" AND TRIM(l.INTERFACE_CODE) IN (:interfaceCodes)");
+        params.addValue("interfaceCodes", interfaceCodes);
+    }
+
+    // ------------------- 1. BUCKET DATA -------------------
+    String bucketSql = """
+            WITH tx_spans AS (
+                SELECT
+                    TRIM(l.INTERFACE_CODE) AS interface_code,
+                    TRIM(l.TRANSACTION_ID) AS transaction_id,
+                    MIN(l.LOGTIME) AS first_log_time,
+                    MAX(l.LOGTIME) AS last_log_time
+                """ + baseFilter + """
+                GROUP BY TRIM(l.INTERFACE_CODE), TRIM(l.TRANSACTION_ID)
+                HAVING COUNT(*) > 1
+                   AND MIN(l.LOGTIME) < MAX(l.LOGTIME)
+            ),
+            tx_duration AS (
+                SELECT
+                    interface_code,
+                    (
+                        EXTRACT(DAY FROM (last_log_time - first_log_time)) * 86400000 +
+                        EXTRACT(HOUR FROM (last_log_time - first_log_time)) * 3600000 +
+                        EXTRACT(MINUTE FROM (last_log_time - first_log_time)) * 60000 +
+                        ROUND(EXTRACT(SECOND FROM (last_log_time - first_log_time)) * 1000)
+                    ) AS duration_millis,
+                    TRUNC(first_log_time)
+                    + NUMTODSINTERVAL(
+                        FLOOR(
+                            (EXTRACT(HOUR FROM first_log_time) * 60 + EXTRACT(MINUTE FROM first_log_time))
+                            / :bucketMinutes
+                        ) * :bucketMinutes,
+                        'MINUTE'
+                    ) AS bucket_start
+                FROM tx_spans
+            ),
+            bucket_stats AS (
+                SELECT bucket_start, duration_millis
+                FROM tx_duration
+                WHERE duration_millis > 0
+            ),
+            mode_calc AS (
+                SELECT
+                    bucket_start,
+                    duration_millis,
+                    COUNT(*) AS freq
+                FROM bucket_stats
+                GROUP BY bucket_start, duration_millis
+            ),
+            ranked_modes AS (
+                SELECT
+                    bucket_start,
+                    duration_millis,
+                    freq,
+                    RANK() OVER (
+                        PARTITION BY bucket_start
+                        ORDER BY 
+                            CASE WHEN freq > 1 THEN 0 ELSE 1 END, -- prefer real mode
+                            freq DESC,
+                            duration_millis ASC                  -- fallback: smallest
+                    ) AS rnk
+                FROM mode_calc
+            ),
+            mode_per_bucket AS (
+                SELECT
+                    bucket_start,
+                    duration_millis AS mode_duration_millis
+                FROM ranked_modes
+                WHERE rnk = 1
+            ),
+            final_stats AS (
+                SELECT
+                    bucket_start,
+                    COUNT(*) AS transaction_count,
+                    ROUND(AVG(duration_millis)) AS avg_duration_millis
+                FROM bucket_stats
+                GROUP BY bucket_start
+            )
+            SELECT
+                f.bucket_start,
+                f.bucket_start + NUMTODSINTERVAL(:bucketMinutes, 'MINUTE') AS bucket_end,
+                f.transaction_count,
+                f.avg_duration_millis,
+                m.mode_duration_millis
+            FROM final_stats f
+            LEFT JOIN mode_per_bucket m
+                ON f.bucket_start = m.bucket_start
+            ORDER BY f.bucket_start
+            """;
+
+    List<DurationBucketRecord> buckets = jdbcTemplate.query(bucketSql, params, (rs, rowNum) -> {
+        DurationBucketRecord r = new DurationBucketRecord();
+
+        Timestamp startTs = rs.getTimestamp("bucket_start");
+        Timestamp endTs = rs.getTimestamp("bucket_end");
+
+        r.setBucketStart(startTs != null ? startTs.toLocalDateTime() : null);
+        r.setBucketEnd(endTs != null ? endTs.toLocalDateTime() : null);
+
+        r.setTransactionCount(rs.getLong("transaction_count"));
+        r.setAvgDurationMillis(rs.getLong("avg_duration_millis"));
+
+        // ✅ always non-null now
+        r.setModeDurationMillis(rs.getLong("mode_duration_millis"));
+
+        return r;
+    });
+
+    // ------------------- 2. GLOBAL MODE -------------------
+    String modeSql = """
+            WITH tx_spans AS (
+                SELECT
+                    TRIM(l.INTERFACE_CODE) AS interface_code,
+                    TRIM(l.TRANSACTION_ID) AS transaction_id,
+                    MIN(l.LOGTIME) AS first_log_time,
+                    MAX(l.LOGTIME) AS last_log_time
+                """ + baseFilter + """
+                GROUP BY TRIM(l.INTERFACE_CODE), TRIM(l.TRANSACTION_ID)
+                HAVING COUNT(*) > 1
+                   AND MIN(l.LOGTIME) < MAX(l.LOGTIME)
+            ),
+            tx_duration AS (
+                SELECT
+                    (
+                        EXTRACT(DAY FROM (last_log_time - first_log_time)) * 86400000 +
+                        EXTRACT(HOUR FROM (last_log_time - first_log_time)) * 3600000 +
+                        EXTRACT(MINUTE FROM (last_log_time - first_log_time)) * 60000 +
+                        ROUND(EXTRACT(SECOND FROM (last_log_time - first_log_time)) * 1000)
+                    ) AS duration_millis,
+                    TRUNC(first_log_time)
+                    + NUMTODSINTERVAL(
+                        FLOOR(
+                            (EXTRACT(HOUR FROM first_log_time) * 60 + EXTRACT(MINUTE FROM first_log_time))
+                            / :bucketMinutes
+                        ) * :bucketMinutes,
+                        'MINUTE'
+                    ) AS bucket_start
+                FROM tx_spans
+            ),
+            bucketed_data AS (
+                SELECT
+                    ROUND(AVG(duration_millis)) AS avg_duration_millis
+                FROM tx_duration
+                WHERE duration_millis > 0
+                GROUP BY bucket_start
+            ),
+            mode_candidates AS (
+                SELECT
+                    avg_duration_millis,
+                    COUNT(*) AS freq
+                FROM bucketed_data
+                GROUP BY avg_duration_millis
+                HAVING COUNT(*) > 1
+            ),
+            ranked_modes AS (
+                SELECT
+                    avg_duration_millis,
+                    RANK() OVER (ORDER BY freq DESC, avg_duration_millis ASC) AS rnk
+                FROM mode_candidates
+            )
+            SELECT avg_duration_millis
+            FROM ranked_modes
+            WHERE rnk = 1
+            """;
+
+    Long mode = null;
+    try {
+        mode = jdbcTemplate.queryForObject(modeSql, params, Long.class);
+    } catch (Exception e) {
+        mode = null;
+    }
+
+    return new DurationBucketResponse(buckets, mode);
+}
+    
+    public CustomQueryResponse executeCustomQuery(String query) {
+        List<Map<String, Object>> rows =
+                jdbcTemplate.queryForList(query, new MapSqlParameterSource());
+
+        return new CustomQueryResponse(rows);
+    }
+    
+    public List<LogRecord> exportLogs(
+            String applicationCode,
             List<String> interfaceCodes,
             LocalDateTime fromDateTime,
-            LocalDateTime toDateTime,
-            int bucketMinutes
+            LocalDateTime toDateTime
     ) {
         StringBuilder sql = new StringBuilder("""
-                WITH tx_spans AS (
-                    SELECT
-                        TRIM(l.INTERFACE_CODE) AS interface_code,
-                        TRIM(l.TRANSACTION_ID) AS transaction_id,
-                        MIN(l.LOGTIME) AS first_log_time,
-                        MAX(l.LOGTIME) AS last_log_time
-                    FROM BOVOSB.VW_IF_AU_SUCCESS_LOG l
-                    WHERE l.LOGTIME >= :fromDateTime
-                      AND l.LOGTIME <= :toDateTime
-                      AND l.TRANSACTION_ID IS NOT NULL
+                SELECT *
+                FROM BOVOSB.MWTB_INTERFACE_AUDIT_LOG l
+                WHERE l.LOGTIME >= :fromDateTime
+                  AND l.LOGTIME <= :toDateTime
                 """);
 
         MapSqlParameterSource params = new MapSqlParameterSource();
         params.addValue("fromDateTime", fromDateTime);
         params.addValue("toDateTime", toDateTime);
-        params.addValue("bucketMinutes", bucketMinutes);
+
+        if (StringUtils.hasText(applicationCode)) {
+            sql.append(" AND l.APPLICATION_CODE = :applicationCode");
+            params.addValue("applicationCode", applicationCode);
+        }
 
         if (interfaceCodes != null && !interfaceCodes.isEmpty()) {
-            sql.append(" AND TRIM(l.INTERFACE_CODE) IN (:interfaceCodes)\n");
+            sql.append(" AND TRIM(l.INTERFACE_CODE) IN (:interfaceCodes)");
             params.addValue("interfaceCodes", interfaceCodes);
         }
 
-        sql.append("""
-                    GROUP BY TRIM(l.INTERFACE_CODE), TRIM(l.TRANSACTION_ID)
-                    HAVING COUNT(*) > 1
-                       AND MIN(l.LOGTIME) < MAX(l.LOGTIME)
-                ),
-                tx_duration AS (
-                    SELECT
-                        interface_code,
-                        transaction_id,
-                        first_log_time,
-                        last_log_time,
-                        (
-                            EXTRACT(DAY FROM (last_log_time - first_log_time)) * 86400000 +
-                            EXTRACT(HOUR FROM (last_log_time - first_log_time)) * 3600000 +
-                            EXTRACT(MINUTE FROM (last_log_time - first_log_time)) * 60000 +
-                            ROUND(EXTRACT(SECOND FROM (last_log_time - first_log_time)) * 1000)
-                        ) AS duration_millis,
-                        TRUNC(first_log_time)
-                        + NUMTODSINTERVAL(
-                            FLOOR(
-                                (EXTRACT(HOUR FROM first_log_time) * 60 + EXTRACT(MINUTE FROM first_log_time))
-                                / :bucketMinutes
-                            ) * :bucketMinutes,
-                            'MINUTE'
-                        ) AS bucket_start
-                    FROM tx_spans
-                )
-                SELECT
-                    bucket_start,
-                    bucket_start + NUMTODSINTERVAL(:bucketMinutes, 'MINUTE') AS bucket_end,
-                    COUNT(*) AS transaction_count,
-                    ROUND(AVG(duration_millis)) AS avg_duration_millis
-                FROM tx_duration
-                WHERE duration_millis > 0
-                GROUP BY bucket_start
-                ORDER BY bucket_start
-                """);
+        sql.append(" ORDER BY l.LOGTIME DESC");
 
-        return jdbcTemplate.query(sql.toString(), params, (rs, rowNum) -> {
-            DurationBucketRecord r = new DurationBucketRecord();
-            Timestamp startTs = rs.getTimestamp("bucket_start");
-            Timestamp endTs = rs.getTimestamp("bucket_end");
-
-            r.setBucketStart(startTs != null ? startTs.toLocalDateTime() : null);
-            r.setBucketEnd(endTs != null ? endTs.toLocalDateTime() : null);
-            r.setTransactionCount(rs.getLong("transaction_count"));
-            r.setAvgDurationMillis(rs.getLong("avg_duration_millis"));
-            return r;
-        });
+        return jdbcTemplate.query(sql.toString(), params, this::mapRow);
     }
 
     private static class InterfaceTransactionSpan {

@@ -3,10 +3,16 @@ package com.example.logviewer.model;
 import java.time.LocalDateTime;
 
 public class DurationBucketRecord {
+
     private LocalDateTime bucketStart;
     private LocalDateTime bucketEnd;
-    private long transactionCount;
-    private long avgDurationMillis;
+
+    private Long transactionCount;
+
+    private Long avgDurationMillis;
+
+    private Long modeDurationMillis;
+
 
     public LocalDateTime getBucketStart() {
         return bucketStart;
@@ -24,19 +30,27 @@ public class DurationBucketRecord {
         this.bucketEnd = bucketEnd;
     }
 
-    public long getTransactionCount() {
+    public Long getTransactionCount() {
         return transactionCount;
     }
 
-    public void setTransactionCount(long transactionCount) {
+    public void setTransactionCount(Long transactionCount) {
         this.transactionCount = transactionCount;
     }
 
-    public long getAvgDurationMillis() {
+    public Long getAvgDurationMillis() {
         return avgDurationMillis;
     }
 
-    public void setAvgDurationMillis(long avgDurationMillis) {
+    public void setAvgDurationMillis(Long avgDurationMillis) {
         this.avgDurationMillis = avgDurationMillis;
+    }
+
+    public Long getModeDurationMillis() {
+        return modeDurationMillis;
+    }
+
+    public void setModeDurationMillis(Long modeDurationMillis) {
+        this.modeDurationMillis = modeDurationMillis;
     }
 }
