@@ -472,7 +472,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     await loadInterfaces(value, currentInterfaces);
   });
 
-  document.getElementById("submitBtn").addEventListener("click", async (e) => {
+  const submitBtn = document.getElementById("submitBtn");
+  submitBtn.addEventListener("click", async (e) => {
     e.preventDefault();
 
     const filters = getFilterValues();
@@ -485,7 +486,14 @@ document.addEventListener("DOMContentLoaded", async () => {
     appliedFilters = { ...filters, caseType: "" };
     hasSubmittedFilters = true;
     currentPage = 1;
-    await renderCurrentPage();
+    try {
+      submitBtn.disabled = true;
+      await renderCurrentPage();
+    } catch (e) {
+      console.log(e);
+    } finally {
+      submitBtn.disabled = false;
+    }
   });
 
   document.getElementById("clearBtn").addEventListener("click", async () => {

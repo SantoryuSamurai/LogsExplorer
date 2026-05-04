@@ -996,3 +996,13 @@ body {
 .export {
   border-radius: 12px;
 }
+
+#modalContent {
+  white-space: pre-wrap;
+  word-break: break-all;
+}
+
+#searchBtn:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
