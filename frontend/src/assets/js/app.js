@@ -425,12 +425,19 @@ async function renderCurrentPage() {
       await renderCurrentPage();
     });
   } catch (e) {
-    console.error("Render Error:", e);
-    const tbody = document.querySelector("#logsTable tbody");
-    if (tbody) {
-      tbody.innerHTML = `<tr><td colspan="8" class="text-center text-danger">Error: ${e.message}</td></tr>`;
-    }
-  } finally {
+  console.error("Render Error:", e);
+  const tbody = document.querySelector("#logsTable tbody");
+  if (tbody) {
+    tbody.innerHTML = "";
+    const tr = document.createElement("tr");
+    const td = document.createElement("td");
+    td.colSpan = 8;
+    td.className = "text-center text-danger";
+    td.textContent = `Error: ${e.message}`;
+    tr.appendChild(td);
+    tbody.appendChild(tr);
+  }
+} finally {
     toggleTableLoader(false);
   }
 }
@@ -560,6 +567,34 @@ document.addEventListener("DOMContentLoaded", async () => {
     fromInput.max = toValue;
   });
 
+  // 🔥 Chart modal date validation (ADD HERE)
+const chartFrom = document.getElementById("chartDateFrom");
+const chartTo = document.getElementById("chartDateTo");
+
+chartFrom.addEventListener("change", (e) => {
+  const fromValue = e.target.value;
+
+  if (fromValue) {
+    chartTo.min = fromValue;
+
+    if (chartTo.value && new Date(fromValue) > new Date(chartTo.value)) {
+      chartTo.value = fromValue;
+    }
+  }
+});
+
+chartTo.addEventListener("change", (e) => {
+  const toValue = e.target.value;
+
+  if (toValue) {
+    chartFrom.max = toValue;
+
+    if (chartFrom.value && new Date(toValue) < new Date(chartFrom.value)) {
+      chartFrom.value = toValue;
+    }
+  }
+});
+
   const successPill = document
     .getElementById("successCount")
     ?.closest(".stat-pill");
@@ -613,6 +648,10 @@ document.addEventListener("DOMContentLoaded", async () => {
   async function refreshTrendChart() {
     const from = document.getElementById("chartDateFrom").value;
     const to = document.getElementById("chartDateTo").value;
+    if (from && to && new Date(from) > new Date(to)) {
+  alert("From Time cannot be after To Time.");
+  return;
+}
     const interval = document.getElementById("chartInterval").value;
 
     const messageEl = document.getElementById("chartStateMessage");
