@@ -95,7 +95,7 @@ function buildLogsUrl(filters = {}, page = 1, size = 10, mode = "EXPLORER") {
 
 async function fetchLogs(filters = {}, page = 1, size = 10, mode = "EXPLORER") {
   const url = buildLogsUrl(filters, page, size, mode);
-  console.log("Logs API URL:", url);
+  // console.log("Logs API URL:", url);
 
   try {
     const response = await fetch(url);
@@ -131,7 +131,7 @@ async function fetchChartData(interfaceCode, from, to, bucket) {
   params.append("bucket", bucket);
 
   const url = `${API_BASE_URL}/interface-duration-buckets?${params.toString()}`;
-  console.log("Chart API URL:", url);
+  // console.log("Chart API URL:", url);
 
   try {
     const response = await fetch(url);

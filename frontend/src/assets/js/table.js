@@ -92,8 +92,7 @@ function renderStatsRows(data) {
   return data.map((item) => [
     // `<span class="interface-code-cell">${escapeHtml(item.interfaceCode || "-")}</span>`,
     `<span class="interface-trend-link " 
-           data-interface="${escapeHtml(item.interfaceCode)}" 
-           style="cursor:pointer;">
+           data-interface="${escapeHtml(item.interfaceCode)}">
       ${escapeHtml(item.interfaceCode || "-")}
     </span>`,
     `<span class="seq-id">${escapeHtml(item.usageCount ?? 0)}</span>`,

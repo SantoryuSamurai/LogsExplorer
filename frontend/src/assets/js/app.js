@@ -1,12 +1,17 @@
-let appliedFilters = {
-  applicationCode: "",
-  interfaceCodes: [],
-  fromDateTime: "",
-  toDateTime: "",
-  searchBy: "",
-  searchValue: "",
-  caseType: "",
-};
+function createEmptyFilters() {
+  return {
+    applicationCode: "",
+    interfaceCodes: [],
+    fromDateTime: "",
+    toDateTime: "",
+    searchBy: "",
+    searchValue: "",
+    caseType: "",
+  };
+}
+
+// Use it for initialization
+let appliedFilters = createEmptyFilters();
 
 let trendChart = null;
 let activeTrendInterface = "";
@@ -24,6 +29,14 @@ function syncTableViewClass(mode) {
 
   tableWrap.classList.toggle("duration-view", mode === "DURATION");
   tableWrap.classList.toggle("minmax-view", mode === "MINMAX");
+}
+
+function isValidDateRange(from, to) {
+  if (from && to && new Date(from) > new Date(to)) {
+    alert("From Date cannot be later than To Date.");
+    return false;
+  }
+  return true;
 }
 
 document.querySelectorAll("#logTabs button").forEach((button) => {
@@ -53,15 +66,9 @@ document.querySelectorAll("#logTabs button").forEach((button) => {
     });
 
     clearFilters();
-    appliedFilters = {
-      applicationCode: "",
-      interfaceCodes: [],
-      fromDateTime: "",
-      toDateTime: "",
-      searchBy: "",
-      searchValue: "",
-      caseType: "",
-    };
+
+    appliedFilters = createEmptyFilters();
+
     hasSubmittedFilters = false;
 
     await loadInterfaces();
@@ -106,11 +113,6 @@ function styleSearchTypeSelect(instance) {
     control.style.borderTopRightRadius = "0";
     control.style.borderBottomRightRadius = "0";
   }
-}
-
-function normalizeDateTime(value) {
-  if (!value) return "";
-  return value.length === 16 ? `${value}:00` : value;
 }
 
 function getFilterValues() {
@@ -171,12 +173,7 @@ function validateSearchFilters(filters) {
     }
   }
 
-  if (from && to && new Date(from) > new Date(to)) {
-    alert("From Date cannot be later than To Date.");
-    return false;
-  }
-
-  return true;
+  return isValidDateRange(from, to);
 }
 
 function updateSearchableSelect(
@@ -425,19 +422,19 @@ async function renderCurrentPage() {
       await renderCurrentPage();
     });
   } catch (e) {
-  console.error("Render Error:", e);
-  const tbody = document.querySelector("#logsTable tbody");
-  if (tbody) {
-    tbody.innerHTML = "";
-    const tr = document.createElement("tr");
-    const td = document.createElement("td");
-    td.colSpan = 8;
-    td.className = "text-center text-danger";
-    td.textContent = `Error: ${e.message}`;
-    tr.appendChild(td);
-    tbody.appendChild(tr);
-  }
-} finally {
+    console.error("Render Error:", e);
+    const tbody = document.querySelector("#logsTable tbody");
+    if (tbody) {
+      tbody.innerHTML = "";
+      const tr = document.createElement("tr");
+      const td = document.createElement("td");
+      td.colSpan = 8;
+      td.className = "text-center text-danger";
+      td.textContent = `Error: ${e.message}`;
+      tr.appendChild(td);
+      tbody.appendChild(tr);
+    }
+  } finally {
     toggleTableLoader(false);
   }
 }
@@ -495,7 +492,7 @@ document.addEventListener("DOMContentLoaded", async () => {
     e.preventDefault();
 
     const filters = getFilterValues();
-    console.log("Submit filters:", filters);
+    // console.log("Submit filters:", filters);
 
     if (!validateSearchFilters(filters)) {
       return;
@@ -568,32 +565,32 @@ document.addEventListener("DOMContentLoaded", async () => {
   });
 
   // 🔥 Chart modal date validation (ADD HERE)
-const chartFrom = document.getElementById("chartDateFrom");
-const chartTo = document.getElementById("chartDateTo");
+  const chartFrom = document.getElementById("chartDateFrom");
+  const chartTo = document.getElementById("chartDateTo");
 
-chartFrom.addEventListener("change", (e) => {
-  const fromValue = e.target.value;
+  chartFrom.addEventListener("change", (e) => {
+    const fromValue = e.target.value;
 
-  if (fromValue) {
-    chartTo.min = fromValue;
+    if (fromValue) {
+      chartTo.min = fromValue;
 
-    if (chartTo.value && new Date(fromValue) > new Date(chartTo.value)) {
-      chartTo.value = fromValue;
+      if (chartTo.value && new Date(fromValue) > new Date(chartTo.value)) {
+        chartTo.value = fromValue;
+      }
     }
-  }
-});
+  });
 
-chartTo.addEventListener("change", (e) => {
-  const toValue = e.target.value;
+  chartTo.addEventListener("change", (e) => {
+    const toValue = e.target.value;
 
-  if (toValue) {
-    chartFrom.max = toValue;
+    if (toValue) {
+      chartFrom.max = toValue;
 
-    if (chartFrom.value && new Date(toValue) < new Date(chartFrom.value)) {
-      chartFrom.value = toValue;
+      if (chartFrom.value && new Date(toValue) < new Date(chartFrom.value)) {
+        chartFrom.value = toValue;
+      }
     }
-  }
-});
+  });
 
   const successPill = document
     .getElementById("successCount")
@@ -648,10 +645,10 @@ chartTo.addEventListener("change", (e) => {
   async function refreshTrendChart() {
     const from = document.getElementById("chartDateFrom").value;
     const to = document.getElementById("chartDateTo").value;
-    if (from && to && new Date(from) > new Date(to)) {
-  alert("From Time cannot be after To Time.");
-  return;
-}
+
+    if (!isValidDateRange(from, to)) {
+      return; // Stop execution if dates are invalid
+    }
     const interval = document.getElementById("chartInterval").value;
 
     const messageEl = document.getElementById("chartStateMessage");
