@@ -1007,3 +1007,16 @@ body {
   cursor: not-allowed;
   opacity: 0.6;
 }
+
+/* Display placeholder for datetime-local inputs */
+input[type="datetime-local"]::before {
+  content: attr(placeholder);
+  width: 100%;
+  color: #6b7280; /* Matches your --muted color */
+}
+
+input[type="datetime-local"]:focus::before,
+input[type="datetime-local"]:valid::before {
+  display: none;
+  content: none;
+}

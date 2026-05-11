@@ -38,7 +38,9 @@
               <i class="bi bi-search text-secondary"></i>
               <input id="globalSearch" type="text" placeholder="Search..." />
             </div> -->
-            <div class="user-chip" title="admin"></div>
+            <div class="pe-2" title="admin">
+              <img src="assets/images/bov-logo.png" alt="logo" height="42" />
+            </div>
           </div>
         </header>
 
@@ -73,16 +75,22 @@
                   >
                     <input
                       id="dateFrom"
-                      type="datetime-local"
+                      type="text"
                       class="form-control date-input"
+                      placeholder="dd-mm-yyyy hh:mm"
+                      onfocus="this.type = 'datetime-local'"
+                      onblur="if (!this.value) this.type = 'text';"
                     />
                     <i
                       class="bi bi-arrow-right text-secondary flex-shrink-0"
                     ></i>
                     <input
                       id="dateTo"
-                      type="datetime-local"
+                      type="text"
                       class="form-control date-input"
+                      placeholder="dd-mm-yyyy hh:mm"
+                      onfocus="this.type = 'datetime-local'"
+                      onblur="if (!this.value) this.type = 'text';"
                     />
                     <div class="recent-range-wrap">
                       <select id="recentRange" class="form-select">
