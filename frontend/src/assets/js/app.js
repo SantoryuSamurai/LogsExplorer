@@ -1,6 +1,5 @@
-// 1. Declare cache variables at the top of app.js
 let cachedApps = null;
-let cachedInterfaces = {}; // Using an object to cache interfaces per Application Code
+let cachedInterfaces = {}; 
 
 function createEmptyFilters() {
   return {
@@ -212,40 +211,15 @@ function updateSearchableSelect(
   }
 }
 
-// async function loadApplications() {
-//   const currentValue = appSelect?.getValue?.() || "";
-//   const apps = await fetchApplicationCodes();
-//   const sortedApps = Array.isArray(apps)
-//     ? [...apps].sort((a, b) => a.localeCompare(b))
-//     : [];
-//   updateSearchableSelect(
-//     appSelect,
-//     sortedApps,
-//     currentValue,
-//     "All Applications",
-//   );
-// }
-
-// async function loadInterfaces(applicationCode = "", preserveValues = []) {
-//   const interfaces = await fetchInterfaceCodes(applicationCode);
-
-//   const sorted = Array.isArray(interfaces)
-//     ? [...interfaces].sort((a, b) => a.localeCompare(b))
-//     : [];
-
-//   updateSearchableSelect(ifaceSelect, sorted, preserveValues, "All Interfaces");
-// }
-
 async function loadApplications() {
   const currentValue = appSelect?.getValue?.() || "";
 
-  // 2. Check Cache: If we already have the list, use it
   let apps;
   if (cachedApps) {
     apps = cachedApps;
   } else {
     apps = await fetchApplicationCodes();
-    cachedApps = apps; // Save to cache for next time (e.g., when switching tabs)
+    cachedApps = apps; 
   }
 
   const sortedApps = Array.isArray(apps)
@@ -261,8 +235,6 @@ async function loadApplications() {
 }
 
 async function loadInterfaces(applicationCode = "", preserveValues = []) {
-  // 3. Check Cache: Key the cache by the applicationCode
-  // If applicationCode is empty, we use a key like "ALL"
   const cacheKey = applicationCode || "ALL";
 
   let interfaces;
