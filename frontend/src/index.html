@@ -18,6 +18,7 @@
       href="assets/vendor/datatables/dataTables.bootstrap5.min.css"
       rel="stylesheet"
     />
+    <link rel="stylesheet" href="assets/vendor/flatpickr/flatpickr.min.css" />
     <link rel="stylesheet" href="assets/css/styles.css" />
   </head>
   <body>
@@ -75,16 +76,22 @@
                   >
                     <input
                       id="dateFrom"
-                      type="datetime-local"
-                      class="form-control date-input"
+                      type="text"
+                      class="form-control date-input datetime-picker"
+                      placeholder="dd-mm-yyyy hh:mm"
+                      inputmode="numeric"
+                      autocomplete="off"
                     />
                     <i
                       class="bi bi-arrow-right text-secondary flex-shrink-0"
                     ></i>
                     <input
                       id="dateTo"
-                      type="datetime-local"
-                      class="form-control date-input"
+                      type="text"
+                      class="form-control date-input datetime-picker"
+                      placeholder="dd-mm-yyyy hh:mm"
+                      inputmode="numeric"
+                      autocomplete="off"
                     />
                     <div class="recent-range-wrap">
                       <select id="recentRange" class="form-select">
@@ -208,7 +215,7 @@
             <div id="tableLoader" class="table-loader-overlay">
               <div class="loader"></div>
             </div>
-            <div class="table-responsive">
+            <div class="table-scroll-shell">
               <table
                 id="logsTable"
                 class="table table-hover align-middle mb-0 w-100"
@@ -279,18 +286,24 @@
               <div class="col-md-3">
                 <label class="form-label small fw-bold">From Time</label>
                 <input
-                  type="datetime-local"
+                  type="text"
                   id="chartDateFrom"
-                  class="form-control form-control-sm"
+                  class="form-control form-control-sm datetime-picker"
+                  placeholder="dd-mm-yyyy hh:mm"
+                  inputmode="numeric"
+                  autocomplete="off"
                 />
               </div>
 
               <div class="col-md-3">
                 <label class="form-label small fw-bold">To Time</label>
                 <input
-                  type="datetime-local"
+                  type="text"
                   id="chartDateTo"
-                  class="form-control form-control-sm"
+                  class="form-control form-control-sm datetime-picker"
+                  placeholder="dd-mm-yyyy hh:mm"
+                  inputmode="numeric"
+                  autocomplete="off"
                 />
               </div>
 
@@ -334,6 +347,7 @@
     <script src="assets/vendor/datatables/dataTables.min.js"></script>
     <script src="assets/vendor/datatables/dataTables.bootstrap5.min.js"></script>
     <script src="assets/vendor/tom-select/tom-select.complete.min.js"></script>
+    <script src="assets/vendor/flatpickr/flatpickr.min.js"></script>
     <script src="assets/vendor/chartjs/chart.min.js"></script>
 
     <script src="assets/js/table.js"></script>

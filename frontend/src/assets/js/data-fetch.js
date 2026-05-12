@@ -1,5 +1,48 @@
 const API_BASE_URL = "http://localhost:8080/api/logs";
 
+function pad2(value) {
+  return String(value).padStart(2, "0");
+}
+
+function formatApiDateTime(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(
+    date.getDate(),
+  )}T${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(
+    date.getSeconds(),
+  )}`;
+}
+
+function parseDateTimeValue(value) {
+  if (!value) return null;
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const isoMatch = raw.match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/,
+  );
+  if (isoMatch) {
+    const [, y, m, d, h, min, s = "0"] = isoMatch;
+    const parsed = new Date(+y, +m - 1, +d, +h, +min, +s);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const displayMatch = raw.match(
+    /^(\d{2})-(\d{2})-(\d{4})\s+(\d{2}):(\d{2})(?::(\d{2}))?$/,
+  );
+  if (displayMatch) {
+    const [, d, m, y, h, min, s = "0"] = displayMatch;
+    const parsed = new Date(+y, +m - 1, +d, +h, +min, +s);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+
 async function fetchApplicationCodes() {
   try {
     const response = await fetch(`${API_BASE_URL}/application-codes`);
@@ -38,8 +81,18 @@ function hasAppliedFilters(filters = {}) {
 
 function normalizeDateTime(value) {
   if (!value) return "";
-  // convert: 2026-04-14T10:30 → 2026-04-14T10:30:00
-  return value.length === 16 ? `${value}:00` : value;
+
+  const parsed =
+    (typeof window !== "undefined" && window.parseDateTimeValue)
+      ? window.parseDateTimeValue(value)
+      : parseDateTimeValue(value);
+
+  if (parsed) return formatApiDateTime(parsed);
+
+  const raw = String(value).trim();
+  if (!raw) return "";
+
+  return raw.length === 16 ? `${raw}:00` : raw;
 }
 
 function buildLogsUrl(filters = {}, page = 1, size = 10, mode = "EXPLORER") {

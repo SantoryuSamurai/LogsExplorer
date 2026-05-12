@@ -26,6 +26,212 @@ let hasSubmittedFilters = false;
 let appSelect, ifaceSelect, searchTypeSelect;
 let activeTab = "EXPLORER";
 
+const API_DATETIME_FORMAT = "Y-m-d\\TH:i:S";
+const DISPLAY_DATETIME_FORMAT = "d-m-Y H:i";
+let dateFromPicker = null;
+let dateToPicker = null;
+let chartDateFromPicker = null;
+let chartDateToPicker = null;
+let isApplyingRecentRange = false;
+
+function pad2(value) {
+  return String(value).padStart(2, "0");
+}
+
+function formatApiDateTime(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+
+  return `${date.getFullYear()}-${pad2(date.getMonth() + 1)}-${pad2(
+    date.getDate(),
+  )}T${pad2(date.getHours())}:${pad2(date.getMinutes())}:${pad2(
+    date.getSeconds(),
+  )}`;
+}
+
+function formatDisplayDateTime(date) {
+  if (!(date instanceof Date) || Number.isNaN(date.getTime())) return "";
+
+  return `${pad2(date.getDate())}-${pad2(date.getMonth() + 1)}-${date.getFullYear()} ${pad2(
+    date.getHours(),
+  )}:${pad2(date.getMinutes())}`;
+}
+
+function parseDateTimeValue(value) {
+  if (!value) return null;
+
+  const raw = String(value).trim();
+  if (!raw) return null;
+
+  const isoMatch = raw.match(
+    /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?$/,
+  );
+  if (isoMatch) {
+    const [, y, m, d, h, min, s = "0"] = isoMatch;
+    const parsed = new Date(+y, +m - 1, +d, +h, +min, +s);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const displayMatch = raw.match(
+    /^(\d{2})-(\d{2})-(\d{4})\s+(\d{2}):(\d{2})(?::(\d{2}))?$/,
+  );
+  if (displayMatch) {
+    const [, d, m, y, h, min, s = "0"] = displayMatch;
+    const parsed = new Date(+y, +m - 1, +d, +h, +min, +s);
+    return Number.isNaN(parsed.getTime()) ? null : parsed;
+  }
+
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+}
+
+function setDateTimeField(picker, inputId, value, triggerChange = false) {
+  if (picker?.setDate) {
+    picker.setDate(value || null, triggerChange);
+    return;
+  }
+
+  const input = document.getElementById(inputId);
+  if (!input) return;
+
+  if (!value) {
+    input.value = "";
+    return;
+  }
+
+  const parsed = value instanceof Date ? value : parseDateTimeValue(value);
+  input.value = parsed ? formatDisplayDateTime(parsed) : String(value);
+}
+
+function getDateTimeFieldValue(picker, inputId) {
+  if (picker?.input?.value) return picker.input.value;
+  return document.getElementById(inputId)?.value || "";
+}
+
+function clearDateTimeField(picker, inputId) {
+  if (picker?.clear) {
+    picker.clear();
+    return;
+  }
+
+  const input = document.getElementById(inputId);
+  if (input) input.value = "";
+}
+
+function syncMainDateBounds() {
+  const fromValue = getDateTimeFieldValue(dateFromPicker, "dateFrom");
+  const toValue = getDateTimeFieldValue(dateToPicker, "dateTo");
+  const fromDate = parseDateTimeValue(fromValue);
+  const toDate = parseDateTimeValue(toValue);
+
+  if (dateFromPicker?.set) {
+    dateFromPicker.set("maxDate", toDate || null);
+  }
+  if (dateToPicker?.set) {
+    dateToPicker.set("minDate", fromDate || null);
+  }
+}
+
+function syncChartDateBounds() {
+  const fromValue = getDateTimeFieldValue(chartDateFromPicker, "chartDateFrom");
+  const toValue = getDateTimeFieldValue(chartDateToPicker, "chartDateTo");
+  const fromDate = parseDateTimeValue(fromValue);
+  const toDate = parseDateTimeValue(toValue);
+
+  if (chartDateFromPicker?.set) {
+    chartDateFromPicker.set("maxDate", toDate || null);
+  }
+  if (chartDateToPicker?.set) {
+    chartDateToPicker.set("minDate", fromDate || null);
+  }
+}
+
+function initializeDatePickers() {
+  const recentRange = document.getElementById("recentRange");
+  const hasFlatpickr = typeof window.flatpickr === "function";
+
+  const baseOptions = {
+    enableTime: true,
+    time_24hr: true,
+    minuteIncrement: 1,
+    allowInput: true,
+    altInput: true,
+    altFormat: DISPLAY_DATETIME_FORMAT,
+    dateFormat: API_DATETIME_FORMAT,
+    altInputClass: "form-control date-input flatpickr-alt-input",
+    disableMobile: true,
+  };
+
+  if (hasFlatpickr) {
+    const mainOptions = {
+      ...baseOptions,
+      onChange: () => {
+        if (!isApplyingRecentRange && recentRange) {
+          recentRange.value = "";
+        }
+        syncMainDateBounds();
+      },
+    };
+
+    dateFromPicker = window.flatpickr("#dateFrom", mainOptions);
+    dateToPicker = window.flatpickr("#dateTo", {
+      ...baseOptions,
+      onChange: () => {
+        if (!isApplyingRecentRange && recentRange) {
+          recentRange.value = "";
+        }
+        syncMainDateBounds();
+      },
+    });
+
+    chartDateFromPicker = window.flatpickr("#chartDateFrom", {
+      ...baseOptions,
+      onChange: () => {
+        syncChartDateBounds();
+      },
+    });
+    chartDateToPicker = window.flatpickr("#chartDateTo", {
+      ...baseOptions,
+      onChange: () => {
+        syncChartDateBounds();
+      },
+    });
+  } else {
+    ["dateFrom", "dateTo", "chartDateFrom", "chartDateTo"].forEach((id) => {
+      const input = document.getElementById(id);
+      if (input) {
+        input.setAttribute("type", "text");
+        input.setAttribute("placeholder", "dd-mm-yyyy hh:mm");
+        input.setAttribute("inputmode", "numeric");
+      }
+    });
+
+    ["dateFrom", "dateTo"].forEach((id) => {
+      const input = document.getElementById(id);
+      if (input) {
+        input.addEventListener("change", () => {
+          if (!isApplyingRecentRange && recentRange) {
+            recentRange.value = "";
+          }
+          syncMainDateBounds();
+        });
+      }
+    });
+
+    ["chartDateFrom", "chartDateTo"].forEach((id) => {
+      const input = document.getElementById(id);
+      if (input) {
+        input.addEventListener("change", () => {
+          syncChartDateBounds();
+        });
+      }
+    });
+  }
+
+  syncMainDateBounds();
+  syncChartDateBounds();
+}
+
+
 function syncTableViewClass(mode) {
   const tableWrap = document.querySelector(".table-wrap");
   if (!tableWrap) return;
@@ -35,7 +241,10 @@ function syncTableViewClass(mode) {
 }
 
 function isValidDateRange(from, to) {
-  if (from && to && new Date(from) > new Date(to)) {
+  const fromDate = parseDateTimeValue(from);
+  const toDate = parseDateTimeValue(to);
+
+  if (fromDate && toDate && fromDate > toDate) {
     alert("From Date cannot be later than To Date.");
     return false;
   }
@@ -141,8 +350,8 @@ function getFilterValues() {
         ? value.map((v) => v.trim()).filter(Boolean)
         : [value.trim()];
     })(),
-    fromDateTime: document.getElementById("dateFrom")?.value || "",
-    toDateTime: document.getElementById("dateTo")?.value || "",
+    fromDateTime: getDateTimeFieldValue(dateFromPicker, "dateFrom"),
+    toDateTime: getDateTimeFieldValue(dateToPicker, "dateTo"),
     searchBy,
     searchValue: searchKeyword,
   };
@@ -258,34 +467,33 @@ function clearFilters() {
   ifaceSelect?.setValue([], true);
   setSearchTypeValue("transactionId");
 
-  const dateFrom = document.getElementById("dateFrom");
-  const dateTo = document.getElementById("dateTo");
   const recentRange = document.getElementById("recentRange");
   const globalSearch = document.getElementById("globalSearch");
   const searchKeyword = document.getElementById("searchKeyword");
 
-  if (dateFrom) dateFrom.value = "";
-  if (dateTo) dateTo.value = "";
+  clearDateTimeField(dateFromPicker, "dateFrom");
+  clearDateTimeField(dateToPicker, "dateTo");
+  syncMainDateBounds();
+
   if (recentRange) recentRange.value = "";
   if (globalSearch) globalSearch.value = "";
   if (searchKeyword) searchKeyword.value = "";
 }
 
 function applyRecentRange() {
-  const mins = parseInt(document.getElementById("recentRange")?.value, 10);
+  const recentRange = document.getElementById("recentRange");
+  const mins = parseInt(recentRange?.value, 10);
   if (!mins) return;
-
-  const dateFrom = document.getElementById("dateFrom");
-  const dateTo = document.getElementById("dateTo");
 
   const end = new Date();
   const start = new Date(end.getTime() - mins * 60000);
-  const pad = (n) => String(n).padStart(2, "0");
-  const format = (d) =>
-    `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
 
-  if (dateFrom) dateFrom.value = format(start);
-  if (dateTo) dateTo.value = format(end);
+  isApplyingRecentRange = true;
+  setDateTimeField(dateFromPicker, "dateFrom", start, false);
+  setDateTimeField(dateToPicker, "dateTo", end, false);
+  isApplyingRecentRange = false;
+
+  syncMainDateBounds();
 }
 
 function ensurePageSizeControl() {
@@ -495,6 +703,10 @@ document.addEventListener("DOMContentLoaded", async () => {
     styleSearchTypeSelect(searchTypeSelect),
   );
 
+  initializeDatePickers();
+
+  document.getElementById("recentRange")?.addEventListener("change", applyRecentRange);
+
   await Promise.all([loadApplications(), loadInterfaces()]);
 
   initLogsTable([], activeTab);
@@ -557,60 +769,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     resetTableState();
   });
 
-  document.getElementById("recentRange").addEventListener("change", () => {
-    applyRecentRange();
-  });
-
-  document.getElementById("dateFrom").addEventListener("change", (e) => {
-    const fromValue = e.target.value;
-    const toInput = document.getElementById("dateTo");
-    const recentRange = document.getElementById("recentRange");
-
-    // Clear recent if manual input
-    if (fromValue) recentRange.value = "";
-
-    // Restrict To date
-    toInput.min = fromValue;
-  });
-
-  document.getElementById("dateTo").addEventListener("change", (e) => {
-    const toValue = e.target.value;
-    const fromInput = document.getElementById("dateFrom");
-    const recentRange = document.getElementById("recentRange");
-
-    if (toValue) recentRange.value = "";
-
-    // Restrict From date
-    fromInput.max = toValue;
-  });
-
-  // 🔥 Chart modal date validation (ADD HERE)
-  const chartFrom = document.getElementById("chartDateFrom");
-  const chartTo = document.getElementById("chartDateTo");
-
-  chartFrom.addEventListener("change", (e) => {
-    const fromValue = e.target.value;
-
-    if (fromValue) {
-      chartTo.min = fromValue;
-
-      if (chartTo.value && new Date(fromValue) > new Date(chartTo.value)) {
-        chartTo.value = fromValue;
-      }
-    }
-  });
-
-  chartTo.addEventListener("change", (e) => {
-    const toValue = e.target.value;
-
-    if (toValue) {
-      chartFrom.max = toValue;
-
-      if (chartFrom.value && new Date(toValue) < new Date(chartFrom.value)) {
-        chartFrom.value = toValue;
-      }
-    }
-  });
 
   const successPill = document
     .getElementById("successCount")
@@ -639,15 +797,15 @@ document.addEventListener("DOMContentLoaded", async () => {
       activeTrendInterface;
 
     // Set default dates in modal if empty
-    if (!document.getElementById("chartDateFrom").value) {
-      const d = new Date();
-      d.setHours(d.getHours() - 6);
-      document.getElementById("chartDateFrom").value = d
-        .toISOString()
-        .slice(0, 16);
-      document.getElementById("chartDateTo").value = new Date()
-        .toISOString()
-        .slice(0, 16);
+    const chartFromValue = getDateTimeFieldValue(chartDateFromPicker, "chartDateFrom");
+    const chartToValue = getDateTimeFieldValue(chartDateToPicker, "chartDateTo");
+
+    if (!chartFromValue || !chartToValue) {
+      const end = new Date();
+      const start = new Date(end.getTime() - 6 * 60 * 60 * 1000);
+      setDateTimeField(chartDateFromPicker, "chartDateFrom", start, false);
+      setDateTimeField(chartDateToPicker, "chartDateTo", end, false);
+      syncChartDateBounds();
     }
 
     const modal = new bootstrap.Modal(document.getElementById("chartModal"));
@@ -663,8 +821,8 @@ document.addEventListener("DOMContentLoaded", async () => {
     .addEventListener("click", refreshTrendChart);
 
   async function refreshTrendChart() {
-    const from = document.getElementById("chartDateFrom").value;
-    const to = document.getElementById("chartDateTo").value;
+    const from = getDateTimeFieldValue(chartDateFromPicker, "chartDateFrom");
+    const to = getDateTimeFieldValue(chartDateToPicker, "chartDateTo");
 
     if (!isValidDateRange(from, to)) {
       return; // Stop execution if dates are invalid
