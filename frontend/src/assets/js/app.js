@@ -1,5 +1,5 @@
 let cachedApps = null;
-let cachedInterfaces = {}; 
+let cachedInterfaces = {};
 
 function createEmptyFilters() {
   return {
@@ -231,7 +231,6 @@ function initializeDatePickers() {
   syncChartDateBounds();
 }
 
-
 function syncTableViewClass(mode) {
   const tableWrap = document.querySelector(".table-wrap");
   if (!tableWrap) return;
@@ -428,7 +427,7 @@ async function loadApplications() {
     apps = cachedApps;
   } else {
     apps = await fetchApplicationCodes();
-    cachedApps = apps; 
+    cachedApps = apps;
   }
 
   const sortedApps = Array.isArray(apps)
@@ -561,13 +560,23 @@ async function renderCurrentPage() {
 
   try {
     syncTableViewClass(activeTab);
+    const isExplorer = activeTab === "EXPLORER";
+    const isDuration = activeTab === "DURATION";
+    const isMinMax = activeTab === "MINMAX";
 
-    const response = await fetchLogs(
-      appliedFilters,
-      currentPage,
-      pageSize,
-      activeTab,
-    );
+    const showSummary =
+      (isExplorer && appliedFilters.searchBy !== "LOGGED_MESSAGE") ||
+      isDuration;
+
+    const fetchSummaryPromise =
+      showSummary && currentPage === 1
+        ? fetchSummary(appliedFilters)
+        : Promise.resolve(null);
+
+    const [response, summary] = await Promise.all([
+      fetchLogs(appliedFilters, currentPage, pageSize, activeTab),
+      fetchSummaryPromise,
+    ]);
 
     if (!response || response.skipped) {
       initLogsTable([], activeTab);
@@ -581,10 +590,6 @@ async function renderCurrentPage() {
       return;
     }
 
-    const isExplorer = activeTab === "EXPLORER";
-    const isDuration = activeTab === "DURATION";
-    const isMinMax = activeTab === "MINMAX";
-
     let tableData = [];
     let totalElements = 0;
     let totalPages = 0;
@@ -595,7 +600,7 @@ async function renderCurrentPage() {
       totalElements = pageObj.totalElements || 0;
       totalPages = pageObj.totalPages || 0;
       updateSummaryUI(
-        response?.summary || {
+        summary || {
           successCount: 0,
           errorCount: 0,
           uniqueTransactionCount: 0,
@@ -608,7 +613,7 @@ async function renderCurrentPage() {
 
       if (isDuration) {
         updateSummaryUI(
-          response?.summary || {
+          summary || {
             successCount: 0,
             errorCount: 0,
             uniqueTransactionCount: 0,
@@ -625,13 +630,13 @@ async function renderCurrentPage() {
 
     initLogsTable(tableData, activeTab);
 
-    const showSummary =
-      activeTab === "EXPLORER" && appliedFilters.searchBy !== "LOGGED_MESSAGE";
+    // const showSummary =
+    //   activeTab === "EXPLORER" && appliedFilters.searchBy !== "LOGGED_MESSAGE";
 
     if (showSummary) {
       setSummaryVisible(true);
       updateSummaryUI(
-        response?.summary || {
+        summary || {
           successCount: 0,
           errorCount: 0,
           uniqueTransactionCount: 0,
@@ -705,7 +710,9 @@ document.addEventListener("DOMContentLoaded", async () => {
 
   initializeDatePickers();
 
-  document.getElementById("recentRange")?.addEventListener("change", applyRecentRange);
+  document
+    .getElementById("recentRange")
+    ?.addEventListener("change", applyRecentRange);
 
   await Promise.all([loadApplications(), loadInterfaces()]);
 
@@ -769,7 +776,6 @@ document.addEventListener("DOMContentLoaded", async () => {
     resetTableState();
   });
 
-
   const successPill = document
     .getElementById("successCount")
     ?.closest(".stat-pill");
@@ -797,8 +803,14 @@ document.addEventListener("DOMContentLoaded", async () => {
       activeTrendInterface;
 
     // Set default dates in modal if empty
-    const chartFromValue = getDateTimeFieldValue(chartDateFromPicker, "chartDateFrom");
-    const chartToValue = getDateTimeFieldValue(chartDateToPicker, "chartDateTo");
+    const chartFromValue = getDateTimeFieldValue(
+      chartDateFromPicker,
+      "chartDateFrom",
+    );
+    const chartToValue = getDateTimeFieldValue(
+      chartDateToPicker,
+      "chartDateTo",
+    );
 
     if (!chartFromValue || !chartToValue) {
       const end = new Date();

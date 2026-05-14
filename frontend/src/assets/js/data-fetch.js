@@ -42,7 +42,6 @@ function parseDateTimeValue(value) {
   return Number.isNaN(parsed.getTime()) ? null : parsed;
 }
 
-
 async function fetchApplicationCodes() {
   try {
     const response = await fetch(`${API_BASE_URL}/application-codes`);
@@ -83,7 +82,7 @@ function normalizeDateTime(value) {
   if (!value) return "";
 
   const parsed =
-    (typeof window !== "undefined" && window.parseDateTimeValue)
+    typeof window !== "undefined" && window.parseDateTimeValue
       ? window.parseDateTimeValue(value)
       : parseDateTimeValue(value);
 
@@ -236,4 +235,37 @@ async function exportToExcel(filters = {}) {
 
   // Trigger download
   window.location.href = url;
+}
+
+// Add this to data-fetch.js
+async function fetchSummary(filters = {}) {
+  try {
+    const params = new URLSearchParams();
+
+    if (filters.applicationCode)
+      params.set("applicationCode", filters.applicationCode);
+    if (filters.interfaceCodes && filters.interfaceCodes.length > 0) {
+      params.set("interfaceCodes", filters.interfaceCodes.join(","));
+    }
+    if (filters.fromDateTime)
+      params.set("fromDateTime", normalizeDateTime(filters.fromDateTime));
+    if (filters.toDateTime)
+      params.set("toDateTime", normalizeDateTime(filters.toDateTime));
+
+    if (filters.searchValue) {
+      params.set("searchBy", filters.searchBy);
+      params.set("searchValue", filters.searchValue);
+      if (filters.caseType) params.set("caseType", filters.caseType);
+    }
+
+    const response = await fetch(
+      `${API_BASE_URL}/summary?${params.toString()}`,
+    );
+    if (!response.ok) throw new Error("Failed to fetch summary");
+
+    return await response.json();
+  } catch (error) {
+    console.error("Error fetching summary:", error);
+    return { successCount: 0, errorCount: 0, uniqueTransactionCount: 0 };
+  }
 }
