@@ -23,6 +23,8 @@ import java.util.stream.Collectors;
 @Repository
 public class LogDataRepository {
 
+    private static final int WINDOW_SIZE = 200;
+
     private final NamedParameterJdbcTemplate jdbcTemplate;
     private final DbConfig dbConfig;
     private final LogQueryBuilder queryBuilder;
@@ -91,6 +93,9 @@ public class LogDataRepository {
         return jdbcTemplate.queryForList(sql, new MapSqlParameterSource(), String.class);
     }
 
+    /**
+     * Legacy paged method. You can keep this for compatibility if other code still calls it.
+     */
     @Cacheable(
             cacheNames = "logPages",
             key = "T(com.example.logviewer.repository.LogDataRepository).cacheKey(" +
@@ -117,6 +122,60 @@ public class LogDataRepository {
         queryBuilder.appendCaseFilter(where, caseType, "l", errorTable());
 
         return executePagedQuery(where.toString(), params, page, size, cachedTotal);
+    }
+
+    /**
+     * Rolling cache window fetch.
+     * Each window is 200 rows, and the windowIndex is part of the cache key.
+     *
+     * windowIndex = 0 -> rows 1..200
+     * windowIndex = 1 -> rows 201..400
+     * windowIndex = 2 -> rows 401..600
+     */
+    @Cacheable(
+            cacheNames = "logWindows",
+            key = "T(com.example.logviewer.repository.LogDataRepository).cacheKey(" +
+                    "'searchLogsWindow', #applicationCode, #interfaceCodes, #caseType, #fromDateTime, #toDateTime, #windowIndex)"
+    )
+    public List<LogRecord> searchLogsWindow(
+            String applicationCode,
+            List<String> interfaceCodes,
+            String caseType,
+            LocalDateTime fromDateTime,
+            LocalDateTime toDateTime,
+            int windowIndex) {
+
+        int safeWindowIndex = Math.max(0, windowIndex);
+        int offset = safeWindowIndex * WINDOW_SIZE;
+        int endRow = offset + WINDOW_SIZE;
+
+        StringBuilder where = new StringBuilder(
+                "FROM " + auditTable() + " l WHERE 1=1");
+
+        MapSqlParameterSource params = new MapSqlParameterSource();
+
+        queryBuilder.appendBaseFilters(
+                where, params,
+                applicationCode, interfaceCodes, fromDateTime, toDateTime, "l");
+
+        queryBuilder.appendCaseFilter(where, caseType, "l", errorTable());
+
+        params.addValue("offset", offset);
+        params.addValue("endRow", endRow);
+
+        String sql = "SELECT * FROM ( " +
+                "    SELECT page_data.*, ROWNUM AS rn " +
+                "    FROM ( " +
+                "        SELECT /*+ FIRST_ROWS */ l.* " +
+                where +
+                "        ORDER BY l.LOGTIME DESC " +
+                "    ) page_data " +
+                "    WHERE ROWNUM <= :endRow " +
+                ") " +
+                "WHERE rn > :offset " +
+                "ORDER BY rn";
+
+        return jdbcTemplate.query(sql, params, this::mapRow);
     }
 
     @Cacheable(
@@ -294,9 +353,7 @@ public class LogDataRepository {
     public static String cacheKey(Object... parts) {
         return java.util.Arrays.stream(parts)
                 .map(part -> {
-
                     if (part instanceof List<?>) {
-
                         List<?> list = (List<?>) part;
 
                         return list.stream()

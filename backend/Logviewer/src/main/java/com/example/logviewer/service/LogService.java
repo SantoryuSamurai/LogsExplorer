@@ -10,6 +10,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
@@ -19,6 +21,7 @@ import java.util.stream.Collectors;
 public class LogService {
 
     private static final LogSummary EMPTY_SUMMARY = new LogSummary(0, 0, 0);
+    private static final int WINDOW_SIZE = 200;
 
     private final LogDataRepository logDataRepository;
     private final LogAnalyticsRepository logAnalyticsRepository;
@@ -67,6 +70,7 @@ public class LogService {
             int page,
             int size,
             boolean includeSummary) {
+
         validatePaging(page, size);
 
         if (fromDateTime != null && toDateTime != null && fromDateTime.isAfter(toDateTime)) {
@@ -152,16 +156,28 @@ public class LogService {
         } else {
             String app = trim(applicationCode);
 
-            pageFuture = CompletableFuture.supplyAsync(
-                    () -> logDataRepository.searchLogs(
-                            app,
-                            normalizedInterfaceCodes,
-                            normalizedCaseType,
-                            fromDateTime,
-                            toDateTime,
-                            page,
-                            size,
-                            null), logQueryExecutor);
+            pageFuture = CompletableFuture.supplyAsync(() -> {
+                int offset = (page - 1) * size;
+                int windowIndex = offset / WINDOW_SIZE;
+
+                List<LogRecord> currentWindow = logDataRepository.searchLogsWindow(
+                        app,
+                        normalizedInterfaceCodes,
+                        normalizedCaseType,
+                        fromDateTime,
+                        toDateTime,
+                        windowIndex);
+
+                List<LogRecord> nextWindow = logDataRepository.searchLogsWindow(
+                        app,
+                        normalizedInterfaceCodes,
+                        normalizedCaseType,
+                        fromDateTime,
+                        toDateTime,
+                        windowIndex + 1);
+
+                return pageFromWindows(currentWindow, nextWindow, page, size, windowIndex);
+            }, logQueryExecutor);
 
             summaryFuture = includeSummary
                     ? CompletableFuture.supplyAsync(() -> logAnalyticsRepository.getSummaryForLogs(
@@ -358,6 +374,42 @@ public class LogService {
         }
 
         return logs;
+    }
+
+    private PagedResponse<LogRecord> pageFromWindows(
+            List<LogRecord> currentWindow,
+            List<LogRecord> nextWindow,
+            int page,
+            int size,
+            int windowIndex) {
+
+        int offset = (page - 1) * size;
+        int windowStartOffset = windowIndex * WINDOW_SIZE;
+
+        List<LogRecord> merged = new ArrayList<>();
+        if (currentWindow != null) {
+            merged.addAll(currentWindow);
+        }
+        if (nextWindow != null) {
+            merged.addAll(nextWindow);
+        }
+
+        int localOffset = offset - windowStartOffset;
+
+        if (localOffset < 0 || localOffset >= merged.size()) {
+            long total = windowStartOffset + merged.size();
+            int totalPages = size <= 0 || total == 0 ? 0 : (int) Math.ceil((double) total / size);
+            return new PagedResponse<>(Collections.emptyList(), total, totalPages, page, size, false);
+        }
+
+        int toIndex = Math.min(localOffset + size, merged.size());
+        List<LogRecord> content = merged.subList(localOffset, toIndex);
+        boolean hasNext = toIndex < merged.size();
+
+        long total = windowStartOffset + merged.size() + (hasNext ? 1 : 0);
+        int totalPages = size <= 0 || total == 0 ? 0 : (int) Math.ceil((double) total / size);
+
+        return new PagedResponse<>(content, total, totalPages, page, size, hasNext);
     }
 
     private void validatePaging(int page, int size) {
