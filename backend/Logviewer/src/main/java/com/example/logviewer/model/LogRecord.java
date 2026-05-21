@@ -17,45 +17,119 @@ public class LogRecord {
     private LocalDateTime createdDate;
     private String modifiedBy;
     private LocalDateTime modifiedDate;
+    private Long totalCount;
 
     // Getters & Setters
 
-    public Long getSequenceId() { return sequenceId; }
-    public void setSequenceId(Long sequenceId) { this.sequenceId = sequenceId; }
+    public Long getSequenceId() {
+        return sequenceId;
+    }
 
-    public String getInterfaceCode() { return interfaceCode; }
-    public void setInterfaceCode(String interfaceCode) { this.interfaceCode = interfaceCode; }
+    public void setSequenceId(Long sequenceId) {
+        this.sequenceId = sequenceId;
+    }
 
-    public String getApplicationCode() { return applicationCode; }
-    public void setApplicationCode(String applicationCode) { this.applicationCode = applicationCode; }
+    public String getInterfaceCode() {
+        return interfaceCode;
+    }
 
-    public String getTransactionId() { return transactionId; }
-    public void setTransactionId(String transactionId) { this.transactionId = transactionId; }
+    public void setInterfaceCode(String interfaceCode) {
+        this.interfaceCode = interfaceCode;
+    }
 
-    public String getLoggingStage() { return loggingStage; }
-    public void setLoggingStage(String loggingStage) { this.loggingStage = loggingStage; }
+    public String getApplicationCode() {
+        return applicationCode;
+    }
 
-    public String getTargetService() { return targetService; }
-    public void setTargetService(String targetService) { this.targetService = targetService; }
+    public void setApplicationCode(String applicationCode) {
+        this.applicationCode = applicationCode;
+    }
 
-    public LocalDateTime getLogTime() { return logTime; }
-    public void setLogTime(LocalDateTime logTime) { this.logTime = logTime; }
+    public String getTransactionId() {
+        return transactionId;
+    }
 
-    public String getLoggedMessage() { return loggedMessage; }
-    public void setLoggedMessage(String loggedMessage) { this.loggedMessage = loggedMessage; }
+    public void setTransactionId(String transactionId) {
+        this.transactionId = transactionId;
+    }
 
-    public String getRecordStatus() { return recordStatus; }
-    public void setRecordStatus(String recordStatus) { this.recordStatus = recordStatus; }
+    public String getLoggingStage() {
+        return loggingStage;
+    }
 
-    public String getCreatedBy() { return createdBy; }
-    public void setCreatedBy(String createdBy) { this.createdBy = createdBy; }
+    public void setLoggingStage(String loggingStage) {
+        this.loggingStage = loggingStage;
+    }
 
-    public LocalDateTime getCreatedDate() { return createdDate; }
-    public void setCreatedDate(LocalDateTime createdDate) { this.createdDate = createdDate; }
+    public String getTargetService() {
+        return targetService;
+    }
 
-    public String getModifiedBy() { return modifiedBy; }
-    public void setModifiedBy(String modifiedBy) { this.modifiedBy = modifiedBy; }
+    public void setTargetService(String targetService) {
+        this.targetService = targetService;
+    }
 
-    public LocalDateTime getModifiedDate() { return modifiedDate; }
-    public void setModifiedDate(LocalDateTime modifiedDate) { this.modifiedDate = modifiedDate; }
+    public LocalDateTime getLogTime() {
+        return logTime;
+    }
+
+    public void setLogTime(LocalDateTime logTime) {
+        this.logTime = logTime;
+    }
+
+    public String getLoggedMessage() {
+        return loggedMessage;
+    }
+
+    public void setLoggedMessage(String loggedMessage) {
+        this.loggedMessage = loggedMessage;
+    }
+
+    public String getRecordStatus() {
+        return recordStatus;
+    }
+
+    public void setRecordStatus(String recordStatus) {
+        this.recordStatus = recordStatus;
+    }
+
+    public String getCreatedBy() {
+        return createdBy;
+    }
+
+    public void setCreatedBy(String createdBy) {
+        this.createdBy = createdBy;
+    }
+
+    public LocalDateTime getCreatedDate() {
+        return createdDate;
+    }
+
+    public void setCreatedDate(LocalDateTime createdDate) {
+        this.createdDate = createdDate;
+    }
+
+    public String getModifiedBy() {
+        return modifiedBy;
+    }
+
+    public void setModifiedBy(String modifiedBy) {
+        this.modifiedBy = modifiedBy;
+    }
+
+    public LocalDateTime getModifiedDate() {
+        return modifiedDate;
+    }
+
+    public void setModifiedDate(LocalDateTime modifiedDate) {
+        this.modifiedDate = modifiedDate;
+    }
+
+    public Long getTotalCount() {
+        return totalCount;
+    }
+
+    public void setTotalCount(Long totalCount) {
+        this.totalCount = totalCount;
+    }
 }

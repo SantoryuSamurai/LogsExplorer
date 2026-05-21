@@ -9,6 +9,7 @@ public class PagedResponse<T> {
     private int totalPages;
     private int number;
     private int size;
+    private boolean hasNext;
 
     public PagedResponse() {
     }
@@ -19,6 +20,11 @@ public class PagedResponse<T> {
         this.totalPages = totalPages;
         this.number = number;
         this.size = size;
+    }
+
+    public PagedResponse(List<T> content, long totalElements, int totalPages, int number, int size, boolean hasNext) {
+        this(content, totalElements, totalPages, number, size);
+        this.hasNext = hasNext;
     }
 
     public List<T> getContent() {
@@ -59,5 +65,13 @@ public class PagedResponse<T> {
 
     public void setSize(int size) {
         this.size = size;
+    }
+
+    public boolean isHasNext() {
+        return hasNext;
+    }
+
+    public void setHasNext(boolean hasNext) {
+        this.hasNext = hasNext;
     }
 }

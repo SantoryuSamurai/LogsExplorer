@@ -3,8 +3,8 @@ package com.example.logviewer.service;
 import com.example.logviewer.exception.BadRequestException;
 import com.example.logviewer.exception.NotFoundException;
 import com.example.logviewer.model.*;
-import com.example.logviewer.repository.LogRepository;
-
+import com.example.logviewer.repository.LogAnalyticsRepository;
+import com.example.logviewer.repository.LogDataRepository;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
@@ -13,23 +13,28 @@ import java.time.LocalDateTime;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Executor;
+import java.util.stream.Collectors;
 
 @Service
 public class LogService {
 
-    private final LogRepository logRepository;
+    private static final LogSummary EMPTY_SUMMARY = new LogSummary(0, 0, 0);
+
+    private final LogDataRepository logDataRepository;
+    private final LogAnalyticsRepository logAnalyticsRepository;
     private final Executor logQueryExecutor;
 
-    public LogService(LogRepository logRepository,
-                      @Qualifier("logQueryExecutor") Executor logQueryExecutor) {
-        this.logRepository = logRepository;
+    public LogService(
+            LogDataRepository logDataRepository,
+            LogAnalyticsRepository logAnalyticsRepository,
+            @Qualifier("logQueryExecutor") Executor logQueryExecutor) {
+        this.logDataRepository = logDataRepository;
+        this.logAnalyticsRepository = logAnalyticsRepository;
         this.logQueryExecutor = logQueryExecutor;
     }
 
-    // -------------------- BASIC APIs --------------------
-
     public List<String> getAllApplicationCodes() {
-        return logRepository.getAllApplicationCodes();
+        return logDataRepository.getAllApplicationCodes();
     }
 
     public List<String> getInterfaceCodesByApplication(String applicationCode) {
@@ -38,8 +43,7 @@ public class LogService {
         }
 
         String app = applicationCode.trim();
-
-        List<String> result = logRepository.getInterfaceCodesByApplication(app);
+        List<String> result = logDataRepository.getInterfaceCodesByApplication(app);
 
         if (result.isEmpty()) {
             throw new NotFoundException("No interface codes found for application: " + app);
@@ -49,10 +53,8 @@ public class LogService {
     }
 
     public List<String> getAllInterfaceCodes() {
-        return logRepository.getAllInterfaceCodes();
+        return logDataRepository.getAllInterfaceCodes();
     }
-
-    // -------------------- MAIN SEARCH --------------------
 
     public CompletableFuture<LogSearchResponse<LogRecord>> searchLogsAsync(
             SearchBy searchBy,
@@ -63,8 +65,8 @@ public class LogService {
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime,
             int page,
-            int size
-    ) {
+            int size,
+            boolean includeSummary) {
         validatePaging(page, size);
 
         if (fromDateTime != null && toDateTime != null && fromDateTime.isAfter(toDateTime)) {
@@ -78,26 +80,24 @@ public class LogService {
         CompletableFuture<LogSummary> summaryFuture;
 
         if (searchBy == SearchBy.TRANSACTION_ID) {
-
             if (!StringUtils.hasText(searchValue)) {
                 throw new BadRequestException("searchValue is required for TRANSACTION_ID");
             }
 
             String txId = searchValue.trim();
+            String app = trim(applicationCode);
 
             pageFuture = CompletableFuture
-                    .completedFuture(
-                            logRepository.searchByTransactionId(
-                                    txId,
-                                    trim(applicationCode),
-                                    normalizedInterfaceCodes,
-                                    normalizedCaseType,
-                                    fromDateTime,
-                                    toDateTime,
-                                    page,
-                                    size
-                            )
-                    )
+                    .supplyAsync(() -> logDataRepository.searchByTransactionId(
+                            txId,
+                            app,
+                            normalizedInterfaceCodes,
+                            normalizedCaseType,
+                            fromDateTime,
+                            toDateTime,
+                            page,
+                            size,
+                            null), logQueryExecutor)
                     .thenApply(result -> {
                         if (result.getContent().isEmpty()) {
                             throw new NotFoundException("Transaction not found: " + txId);
@@ -105,17 +105,16 @@ public class LogService {
                         return result;
                     });
 
-            summaryFuture = CompletableFuture.supplyAsync(() ->
-                    logRepository.getSummaryByTransactionId(
+            summaryFuture = includeSummary
+                    ? CompletableFuture.supplyAsync(() -> logAnalyticsRepository.getSummaryByTransactionId(
                             txId,
-                            trim(applicationCode),
+                            app,
                             normalizedInterfaceCodes,
                             fromDateTime,
-                            toDateTime
-                    ), logQueryExecutor);
+                            toDateTime), logQueryExecutor)
+                    : CompletableFuture.completedFuture(EMPTY_SUMMARY);
 
         } else if (searchBy == SearchBy.LOGGED_MESSAGE) {
-
             if (!StringUtils.hasText(searchValue)) {
                 throw new BadRequestException("searchValue is required for LOGGED_MESSAGE");
             }
@@ -126,49 +125,120 @@ public class LogService {
                 throw new BadRequestException("fromDateTime and toDateTime are required for LOGGED_MESSAGE");
             }
 
-            pageFuture = logRepository.searchByLoggedMessageAsync(
-                    searchValue.trim(),
-                    applicationCode.trim(),
+            String msg = searchValue.trim();
+            String app = applicationCode.trim();
+
+            pageFuture = logDataRepository.searchByLoggedMessageAsync(
+                    msg,
+                    app,
                     normalizedInterfaceCodes,
                     normalizedCaseType,
                     fromDateTime,
                     toDateTime,
                     page,
                     size,
-                    logQueryExecutor
-            );
+                    logQueryExecutor);
 
-            summaryFuture = CompletableFuture.completedFuture(new LogSummary(0, 0, 0));
+            summaryFuture = includeSummary
+                    ? CompletableFuture.supplyAsync(() -> logAnalyticsRepository.getSummaryForLoggedMessage(
+                            msg,
+                            app,
+                            normalizedInterfaceCodes,
+                            fromDateTime,
+                            toDateTime,
+                            normalizedCaseType), logQueryExecutor)
+                    : CompletableFuture.completedFuture(EMPTY_SUMMARY);
 
         } else {
+            String app = trim(applicationCode);
 
-            // Generic search → allow empty
-            pageFuture = CompletableFuture.completedFuture(
-                    logRepository.searchLogs(
-                            trim(applicationCode),
+            pageFuture = CompletableFuture.supplyAsync(
+                    () -> logDataRepository.searchLogs(
+                            app,
                             normalizedInterfaceCodes,
                             normalizedCaseType,
                             fromDateTime,
                             toDateTime,
                             page,
-                            size
-                    )
-            );
+                            size,
+                            null), logQueryExecutor);
 
-            summaryFuture = CompletableFuture.supplyAsync(() ->
-                    logRepository.getSummaryForLogs(
-                            trim(applicationCode),
+            summaryFuture = includeSummary
+                    ? CompletableFuture.supplyAsync(() -> logAnalyticsRepository.getSummaryForLogs(
+                            app,
                             normalizedInterfaceCodes,
                             fromDateTime,
-                            toDateTime
-                    ), logQueryExecutor);
+                            toDateTime), logQueryExecutor)
+                    : CompletableFuture.completedFuture(EMPTY_SUMMARY);
         }
 
         return pageFuture.thenCombine(summaryFuture,
                 (pageResult, summary) -> new LogSearchResponse<>(pageResult, summary));
     }
 
-    // -------------------- STATS --------------------
+    public CompletableFuture<LogSummary> getSummaryAsync(
+            SearchBy searchBy,
+            String searchValue,
+            String applicationCode,
+            List<String> interfaceCodes,
+            String caseType,
+            LocalDateTime fromDateTime,
+            LocalDateTime toDateTime) {
+
+        if (fromDateTime != null && toDateTime != null && fromDateTime.isAfter(toDateTime)) {
+            throw new BadRequestException("fromDateTime must be before toDateTime");
+        }
+
+        List<String> normalizedInterfaceCodes = normalizeCodes(interfaceCodes);
+        String normalizedCaseType = normalizeCaseType(caseType);
+
+        if (searchBy == SearchBy.TRANSACTION_ID) {
+            if (!StringUtils.hasText(searchValue)) {
+                throw new BadRequestException("searchValue is required for TRANSACTION_ID");
+            }
+
+            String txId = searchValue.trim();
+            String app = trim(applicationCode);
+
+            return CompletableFuture.supplyAsync(() -> logAnalyticsRepository.getSummaryByTransactionId(
+                    txId,
+                    app,
+                    normalizedInterfaceCodes,
+                    fromDateTime,
+                    toDateTime), logQueryExecutor);
+        }
+
+        if (searchBy == SearchBy.LOGGED_MESSAGE) {
+            if (!StringUtils.hasText(searchValue)) {
+                throw new BadRequestException("searchValue is required for LOGGED_MESSAGE");
+            }
+            if (!StringUtils.hasText(applicationCode)) {
+                throw new BadRequestException("applicationCode is required for LOGGED_MESSAGE");
+            }
+            if (fromDateTime == null || toDateTime == null) {
+                throw new BadRequestException("fromDateTime and toDateTime are required for LOGGED_MESSAGE");
+            }
+
+            String msg = searchValue.trim();
+            String app = applicationCode.trim();
+
+            return CompletableFuture.supplyAsync(() -> logAnalyticsRepository.getSummaryForLoggedMessage(
+                    msg,
+                    app,
+                    normalizedInterfaceCodes,
+                    fromDateTime,
+                    toDateTime,
+                    normalizedCaseType), logQueryExecutor);
+        }
+
+        String app = trim(applicationCode);
+
+        return CompletableFuture.supplyAsync(() -> logAnalyticsRepository.getSummaryForLogs(
+                app,
+                normalizedInterfaceCodes,
+                fromDateTime,
+                toDateTime), logQueryExecutor);
+    }
 
     public CompletableFuture<PagedResponse<InterfaceStatsRecord>> getInterfaceStatsAsync(
             String applicationCode,
@@ -176,19 +246,16 @@ public class LogService {
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime,
             int page,
-            int size
-    ) {
+            int size) {
         validatePaging(page, size);
 
-        return CompletableFuture.supplyAsync(() ->
-                logRepository.getInterfaceStats(
-                        trim(applicationCode),
-                        normalizeCodes(interfaceCodes),
-                        fromDateTime,
-                        toDateTime,
-                        page,
-                        size
-                ), logQueryExecutor);
+        return CompletableFuture.supplyAsync(() -> logAnalyticsRepository.getInterfaceStats(
+                trim(applicationCode),
+                normalizeCodes(interfaceCodes),
+                fromDateTime,
+                toDateTime,
+                page,
+                size), logQueryExecutor);
     }
 
     public CompletableFuture<PagedResponse<TransactionDurationRecord>> getTransactionDurationsAsync(
@@ -197,27 +264,23 @@ public class LogService {
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime,
             int page,
-            int size
-    ) {
+            int size) {
         validatePaging(page, size);
 
-        return CompletableFuture.supplyAsync(() ->
-                logRepository.searchTransactionDurations(
-                        trim(applicationCode),
-                        normalizeCodes(interfaceCodes),
-                        fromDateTime,
-                        toDateTime,
-                        page,
-                        size
-                ), logQueryExecutor);
+        return CompletableFuture.supplyAsync(() -> logAnalyticsRepository.searchTransactionDurations(
+                trim(applicationCode),
+                normalizeCodes(interfaceCodes),
+                fromDateTime,
+                toDateTime,
+                page,
+                size), logQueryExecutor);
     }
 
     public DurationBucketResponse getInterfaceDurationBuckets(
             List<String> interfaceCodes,
             LocalDateTime fromDateTime,
             LocalDateTime toDateTime,
-            String bucket
-    ) {
+            String bucket) {
         List<String> normalizedInterfaceCodes = normalizeCodes(interfaceCodes);
 
         if (normalizedInterfaceCodes == null || normalizedInterfaceCodes.isEmpty()) {
@@ -230,48 +293,14 @@ public class LogService {
 
         int bucketMinutes = parseBucketToMinutes(bucket);
 
-        return logRepository.getAvgDurationByBucket(
+        return logAnalyticsRepository.getAvgDurationByBucket(
                 normalizedInterfaceCodes,
                 fromDateTime,
                 toDateTime,
-                bucketMinutes
-        );
+                bucketMinutes);
     }
-
-    // -------------------- EXPORT --------------------
-
-    public List<LogRecord> exportLogs(
-            String applicationCode,
-            List<String> interfaceCodes,
-            LocalDateTime fromDateTime,
-            LocalDateTime toDateTime
-    ) {
-        if (fromDateTime == null || toDateTime == null) {
-            throw new BadRequestException("fromDateTime and toDateTime are mandatory");
-        }
-
-        if (fromDateTime.isAfter(toDateTime)) {
-            throw new BadRequestException("fromDateTime must be before toDateTime");
-        }
-
-        List<LogRecord> logs = logRepository.exportLogs(
-                trim(applicationCode),
-                normalizeCodes(interfaceCodes),
-                fromDateTime,
-                toDateTime
-        );
-
-        if (logs.isEmpty()) {
-            throw new NotFoundException("No logs found for export");
-        }
-
-        return logs;
-    }
-
-    // -------------------- CUSTOM QUERY --------------------
 
     public CustomQueryResponse executeCustomQuery(String query) {
-
         if (!StringUtils.hasText(query)) {
             throw new BadRequestException("Query cannot be empty");
         }
@@ -291,11 +320,10 @@ public class LogService {
         }
 
         if (normalized.contains("drop") ||
-            normalized.contains("delete") ||
-            normalized.contains("update") ||
-            normalized.contains("insert") ||
-            normalized.contains("truncate")) {
-
+                normalized.contains("delete") ||
+                normalized.contains("update") ||
+                normalized.contains("insert") ||
+                normalized.contains("truncate")) {
             throw new BadRequestException("Invalid query");
         }
 
@@ -303,37 +331,74 @@ public class LogService {
             query = query + " FETCH FIRST 100 ROWS ONLY";
         }
 
-        return logRepository.executeCustomQuery(query);
+        return logDataRepository.executeCustomQuery(query);
     }
 
-    // -------------------- HELPERS --------------------
+    public List<LogRecord> exportLogs(
+            String applicationCode,
+            List<String> interfaceCodes,
+            LocalDateTime fromDateTime,
+            LocalDateTime toDateTime) {
+        if (fromDateTime == null || toDateTime == null) {
+            throw new BadRequestException("fromDateTime and toDateTime are mandatory");
+        }
+
+        if (fromDateTime.isAfter(toDateTime)) {
+            throw new BadRequestException("fromDateTime must be before toDateTime");
+        }
+
+        List<LogRecord> logs = logDataRepository.exportLogs(
+                trim(applicationCode),
+                normalizeCodes(interfaceCodes),
+                fromDateTime,
+                toDateTime);
+
+        if (logs.isEmpty()) {
+            throw new NotFoundException("No logs found for export");
+        }
+
+        return logs;
+    }
 
     private void validatePaging(int page, int size) {
-        if (page < 1) throw new BadRequestException("page must be >= 1");
-        if (size < 1) throw new BadRequestException("size must be >= 1");
+        if (page < 1) {
+            throw new BadRequestException("page must be >= 1");
+        }
+        if (size < 1) {
+            throw new BadRequestException("size must be >= 1");
+        }
+        if (size > 100) {
+            throw new BadRequestException("size must be <= 100");
+        }
     }
 
     private String normalizeCaseType(String caseType) {
-        if (!StringUtils.hasText(caseType)) return null;
+        if (!StringUtils.hasText(caseType)) {
+            return null;
+        }
 
         String value = caseType.trim().toLowerCase();
-        if ("error".equals(value)) value = "failure";
+        if ("error".equals(value)) {
+            value = "failure";
+        }
 
         if (!value.equals("success") && !value.equals("failure")) {
-            throw new BadRequestException("caseType must be success or error");
+            throw new BadRequestException("caseType must be success or failure");
         }
 
         return value;
     }
 
     private List<String> normalizeCodes(List<String> codes) {
-        if (codes == null) return null;
+        if (codes == null) {
+            return null;
+        }
 
         return codes.stream()
                 .filter(StringUtils::hasText)
                 .map(String::trim)
                 .distinct()
-                .toList();
+                .collect(Collectors.toList());
     }
 
     private String trim(String value) {
@@ -347,10 +412,18 @@ public class LogService {
 
         String normalized = bucket.trim().toLowerCase().replace(" ", "");
 
-        if (normalized.endsWith("mins")) return Integer.parseInt(normalized.replace("mins", ""));
-        if (normalized.endsWith("min")) return Integer.parseInt(normalized.replace("min", ""));
-        if (normalized.endsWith("hr")) return Integer.parseInt(normalized.replace("hr", "")) * 60;
-        if (normalized.endsWith("hrs")) return Integer.parseInt(normalized.replace("hrs", "")) * 60;
+        if (normalized.endsWith("mins")) {
+            return Integer.parseInt(normalized.replace("mins", ""));
+        }
+        if (normalized.endsWith("min")) {
+            return Integer.parseInt(normalized.replace("min", ""));
+        }
+        if (normalized.endsWith("hr")) {
+            return Integer.parseInt(normalized.replace("hr", "")) * 60;
+        }
+        if (normalized.endsWith("hrs")) {
+            return Integer.parseInt(normalized.replace("hrs", "")) * 60;
+        }
 
         throw new BadRequestException("Invalid bucket format");
     }

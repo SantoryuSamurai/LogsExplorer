@@ -4,7 +4,7 @@ public class LogSummary {
 
     private long successCount;
     private long errorCount;
-    private long uniqueTransactionCount; // ✅ NEW
+    private long uniqueTransactionCount; 
 
     public LogSummary() {}
 

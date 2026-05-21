@@ -9,11 +9,10 @@ public class DurationBucketResponse {
 
     private List<DurationBucketRecord> buckets;
 
-    // Keep internal type as Long
-    @JsonIgnore // prevent default serialization
-    private Long modeDurationMillis;
+    @JsonIgnore 
+    private String modeDurationMillis;
 
-    public DurationBucketResponse(List<DurationBucketRecord> buckets, Long modeDurationMillis) {
+    public DurationBucketResponse(List<DurationBucketRecord> buckets, String modeDurationMillis) {
         this.buckets = buckets;
         this.modeDurationMillis = modeDurationMillis;
     }
@@ -26,15 +25,15 @@ public class DurationBucketResponse {
         this.buckets = buckets;
     }
 
-    public Long getModeDurationMillis() {
+    public String getModeDurationMillis() {
         return modeDurationMillis;
     }
 
-    public void setModeDurationMillis(Long modeDurationMillis) {
+    public void setModeDurationMillis(String modeDurationMillis) {
         this.modeDurationMillis = modeDurationMillis;
     }
 
-    // ✅ Custom JSON output
+
     @JsonGetter("modeDurationMillis")
     public Object getModeDurationMillisForJson() {
         return modeDurationMillis == null ? "NA" : modeDurationMillis;

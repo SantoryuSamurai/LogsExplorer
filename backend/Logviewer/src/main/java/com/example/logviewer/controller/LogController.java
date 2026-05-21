@@ -25,27 +25,25 @@ public class LogController {
         this.logService = logService;
     }
 
-    // -------------------- BASIC APIs --------------------
 
     @GetMapping("/application-codes")
-    public List<String> getAllApplicationCodes() {
-        return logService.getAllApplicationCodes();
+    public ResponseEntity<List<String>> getAllApplicationCodes() {
+        return ResponseEntity.ok(logService.getAllApplicationCodes());
     }
 
     @GetMapping("/interface-codes")
-    public List<String> getInterfaceCodes(@RequestParam String applicationCode) {
-        return logService.getInterfaceCodesByApplication(applicationCode);
+    public ResponseEntity<List<String>> getInterfaceCodes(@RequestParam String applicationCode) {
+        return ResponseEntity.ok(logService.getInterfaceCodesByApplication(applicationCode));
     }
 
     @GetMapping("/interface-codes/all")
-    public List<String> getAllInterfaceCodes() {
-        return logService.getAllInterfaceCodes();
+    public ResponseEntity<List<String>> getAllInterfaceCodes() {
+        return ResponseEntity.ok(logService.getAllInterfaceCodes());
     }
 
-    // -------------------- SEARCH APIs --------------------
 
     @GetMapping
-    public CompletableFuture<LogSearchResponse<LogRecord>> getLogs(
+    public CompletableFuture<ResponseEntity<LogSearchResponse<LogRecord>>> getLogs(
             @RequestParam(required = false) SearchBy searchBy,
             @RequestParam(required = false) String searchValue,
             @RequestParam(required = false) String applicationCode,
@@ -56,7 +54,8 @@ public class LogController {
             @RequestParam(required = false)
             @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime toDateTime,
             @RequestParam(defaultValue = "1") int page,
-            @RequestParam(defaultValue = "10") int size
+            @RequestParam(defaultValue = "10") int size,
+            @RequestParam(defaultValue = "false") boolean includeSummary
     ) {
         return logService.searchLogsAsync(
                 searchBy,
@@ -67,12 +66,36 @@ public class LogController {
                 fromDateTime,
                 toDateTime,
                 page,
-                size
-        );
+                size,
+                includeSummary
+        ).thenApply(ResponseEntity::ok);
+    }
+
+    @GetMapping("/summary")
+    public CompletableFuture<ResponseEntity<LogSummary>> getSummary(
+            @RequestParam(required = false) SearchBy searchBy,
+            @RequestParam(required = false) String searchValue,
+            @RequestParam(required = false) String applicationCode,
+            @RequestParam(required = false) List<String> interfaceCodes,
+            @RequestParam(required = false) String caseType,
+            @RequestParam(required = false)
+            @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime fromDateTime,
+            @RequestParam(required = false)
+            @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime toDateTime
+    ) {
+        return logService.getSummaryAsync(
+                searchBy,
+                searchValue,
+                applicationCode,
+                interfaceCodes,
+                caseType,
+                fromDateTime,
+                toDateTime
+        ).thenApply(ResponseEntity::ok);
     }
 
     @GetMapping("/interface-stats")
-    public CompletableFuture<PagedResponse<InterfaceStatsRecord>> getInterfaceStats(
+    public CompletableFuture<ResponseEntity<PagedResponse<InterfaceStatsRecord>>> getInterfaceStats(
             @RequestParam(required = false) String applicationCode,
             @RequestParam(required = false) List<String> interfaceCodes,
             @RequestParam(required = false)
@@ -89,11 +112,11 @@ public class LogController {
                 toDateTime,
                 page,
                 size
-        );
+        ).thenApply(ResponseEntity::ok);
     }
 
     @GetMapping("/durations")
-    public CompletableFuture<PagedResponse<TransactionDurationRecord>> getTransactionDurations(
+    public CompletableFuture<ResponseEntity<PagedResponse<TransactionDurationRecord>>> getTransactionDurations(
             @RequestParam(required = false) String applicationCode,
             @RequestParam(required = false) List<String> interfaceCodes,
             @RequestParam(required = false)
@@ -110,13 +133,12 @@ public class LogController {
                 toDateTime,
                 page,
                 size
-        );
+        ).thenApply(ResponseEntity::ok);
     }
 
-    // -------------------- BUCKET API --------------------
-
+    
     @GetMapping("/interface-duration-buckets")
-    public DurationBucketResponse getInterfaceDurationBuckets(
+    public ResponseEntity<DurationBucketResponse> getInterfaceDurationBuckets(
             @RequestParam List<String> interfaceCodes,
             @RequestParam
             @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime fromDateTime,
@@ -124,26 +146,32 @@ public class LogController {
             @DateTimeFormat(pattern = "yyyy-MM-dd'T'HH:mm:ss") LocalDateTime toDateTime,
             @RequestParam String bucket
     ) {
-        return logService.getInterfaceDurationBuckets(
-                interfaceCodes,
-                fromDateTime,
-                toDateTime,
-                bucket
+        return ResponseEntity.ok(
+                logService.getInterfaceDurationBuckets(
+                        interfaceCodes,
+                        fromDateTime,
+                        toDateTime,
+                        bucket
+                )
         );
     }
 
-    // -------------------- CUSTOM QUERY --------------------
+  
 
     @PostMapping("/custom-query")
-    public CustomQueryResponse executeCustomQuery(@RequestBody CustomQueryRequest request) {
+    public ResponseEntity<CustomQueryResponse> executeCustomQuery(
+            @RequestBody CustomQueryRequest request
+    ) {
         if (request == null || request.getQuery() == null) {
             throw new IllegalArgumentException("Query request cannot be null");
         }
 
-        return logService.executeCustomQuery(request.getQuery());
+        return ResponseEntity.ok(
+                logService.executeCustomQuery(request.getQuery())
+        );
     }
 
-    // -------------------- EXPORT (CSV) --------------------
+  
 
     @GetMapping("/export")
     public ResponseEntity<ByteArrayResource> exportLogs(
@@ -174,7 +202,7 @@ public class LogController {
                 .body(resource);
     }
 
-    // -------------------- CSV BUILDER --------------------
+
 
     private String convertToCsv(List<LogRecord> logs) {
         StringBuilder sb = new StringBuilder();

@@ -232,7 +232,17 @@ function renderPager(currentPage, totalPages, onPageChange) {
     if (active) btn.classList.add("active");
 
     if (!disabled) {
-      btn.addEventListener("click", () => onPageChange(page));
+      btn.addEventListener("click", () => {
+        console.log(
+          "clicked page:",
+          page,
+          "currentPage:",
+          currentPage,
+          "totalPages:",
+          totalPages,
+        );
+        onPageChange(page);
+      });
       btn.style.cursor = "pointer";
     } else if (active) {
       btn.style.cursor = "default";
@@ -253,6 +263,10 @@ function renderPager(currentPage, totalPages, onPageChange) {
   const hasPrev = currentPage > 1;
   const hasNext = currentPage < totalPages;
 
+  // First page
+  createBtn('<i class="bi bi-chevron-double-left"></i>', 1, !hasPrev, false);
+
+  // Previous page
   createBtn(
     '<i class="bi bi-chevron-left"></i>',
     currentPage - 1,
@@ -294,9 +308,18 @@ function renderPager(currentPage, totalPages, onPageChange) {
     );
   }
 
+  // Next page
   createBtn(
     '<i class="bi bi-chevron-right"></i>',
     currentPage + 1,
+    !hasNext,
+    false,
+  );
+
+  // Last page
+  createBtn(
+    '<i class="bi bi-chevron-double-right"></i>',
+    totalPages,
     !hasNext,
     false,
   );

@@ -12,13 +12,12 @@ public class DotenvConfig {
     public void loadEnv() {
 
         Dotenv dotenv = Dotenv.configure()
-                .directory("./")   // IMPORTANT for Eclipse
+                .directory("./")   
                 .ignoreIfMissing()
                 .load();
 
         dotenv.entries().forEach(entry -> {
             System.setProperty(entry.getKey(), entry.getValue());
-            System.out.println("Loaded ENV: " + entry.getKey() + "=" + entry.getValue());
         });
     }
 }

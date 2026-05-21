@@ -16,7 +16,6 @@ import java.util.concurrent.CompletionException;
 @ControllerAdvice
 public class GlobalExceptionHandler {
 
-    // ✅ Handle legacy ResponseStatusException (optional, can remove later)
     @ExceptionHandler(ResponseStatusException.class)
     public ResponseEntity<ApiError> handleResponseStatusException(
             ResponseStatusException ex,
@@ -40,7 +39,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, status);
     }
 
-    // ✅ Handle BadRequestException
     @ExceptionHandler(BadRequestException.class)
     public ResponseEntity<ApiError> handleBadRequest(
             BadRequestException ex,
@@ -56,7 +54,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(error);
     }
 
-    // ✅ Handle NotFoundException (NEW)
+   
     @ExceptionHandler(NotFoundException.class)
     public ResponseEntity<ApiError> handleNotFound(
             NotFoundException ex,
@@ -72,7 +70,6 @@ public class GlobalExceptionHandler {
         return new ResponseEntity<>(error, HttpStatus.NOT_FOUND);
     }
 
-    // ✅ Handle missing query params
     @ExceptionHandler(MissingServletRequestParameterException.class)
     public ResponseEntity<ApiError> handleMissingParams(
             MissingServletRequestParameterException ex,
@@ -90,7 +87,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(error);
     }
 
-    // ✅ Handle type mismatch (e.g., wrong date, wrong enum)
+  
     @ExceptionHandler(MethodArgumentTypeMismatchException.class)
     public ResponseEntity<ApiError> handleTypeMismatch(
             MethodArgumentTypeMismatchException ex,
@@ -108,7 +105,7 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(error);
     }
 
-    // ✅ Handle validation errors (@Valid)
+  
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<ApiError> handleValidation(
             MethodArgumentNotValidException ex,
@@ -131,7 +128,6 @@ public class GlobalExceptionHandler {
         return ResponseEntity.badRequest().body(error);
     }
 
-    // ✅ Handle async (CompletableFuture)
     @ExceptionHandler(CompletionException.class)
     public ResponseEntity<ApiError> handleCompletionException(
             CompletionException ex,
@@ -154,7 +150,7 @@ public class GlobalExceptionHandler {
         return handleGenericException(ex, request);
     }
 
-    // ✅ Catch-all fallback
+   
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiError> handleGenericException(
             Exception ex,
